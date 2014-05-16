@@ -742,8 +742,6 @@ namespace canopen{
     void clearRPDOMapping(std::string chainName, int object);
     void enableRPDO(std::string chainName, int object);
 
-    void setObjects(std::string chainName);
-
     void makeTPDOMapping(std::string chainName, int object, std::vector<std::string> registers, std::vector<int> sizes, u_int8_t sync_type);
     void disableTPDO(std::string chainName,int object);
     void clearTPDOMapping(std::string chainName,int object);

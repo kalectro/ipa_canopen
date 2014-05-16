@@ -285,10 +285,6 @@ namespace canopen
                             tpdo_registers.push_back("606400");
                             tpdo_sizes.push_back(0x20);
 
-                            // Velocity Actual Value
-                            tpdo_registers.push_back("606C00");
-                            tpdo_sizes.push_back(0x20);
-
                             // Position Target Value
                             switch(mode_of_operation)
                             {
@@ -321,8 +317,6 @@ namespace canopen
             }
         }
         recover_active = false;
-
-        canopen::setObjects(chainName);
 
         for (auto id : canopen::deviceGroups[chainName].getCANids())
         {
@@ -1499,60 +1493,6 @@ namespace canopen
             }
 
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        }
-    }
-
-    void setObjects(std::string chainName)
-    {
-        for (auto id : canopen::deviceGroups[chainName].getCANids())
-        {
-            // Set Profile Velocity
-            sendSDO_checked(id, SDOkey(0x6081,0x00), 5000);
-
-            // Set Max Velocity
-            //sendSDO_checked(id, SDOkey(0x607f,0x00), 5000);
-
-            // Set Profile Acceleration
-            sendSDO_checked(id, SDOkey(0x6083,0x00), 5000);
-
-            // Set Profile Deceleration
-            sendSDO_checked(id, SDOkey(0x6084,0x00), 5000);
-
-            // Set Max Acceleration
-            sendSDO_checked(id, SDOkey(0x60c5,0x00), 5000);
-
-            // Set Max Deceleration
-            sendSDO_checked(id, SDOkey(0x60c6,0x00), 5000);
-
-            // Closed Loop Control
-            sendSDO_checked(id, SDOkey(0x3202,0x00), 0x0043);
-
-            // Set Alignment
-            sendSDO_checked(id, SDOkey(0x2050,0x00), 0xA993);
-
-            // Set PID Parameters
-            sendSDO_checked(id, SDOkey(0x3210,0x01), 0x0800);
-            sendSDO_checked(id, SDOkey(0x3210,0x02), 0x0000);
-            sendSDO_checked(id, SDOkey(0x3210,0x03), 0x2EE0);
-            sendSDO_checked(id, SDOkey(0x3210,0x04), 0x001E);
-            sendSDO_checked(id, SDOkey(0x3210,0x05), 0x2000);
-            sendSDO_checked(id, SDOkey(0x3210,0x06), 0x0100);
-            sendSDO_checked(id, SDOkey(0x3210,0x07), 0x2000);
-            sendSDO_checked(id, SDOkey(0x3210,0x08), 0x0100);
-
-            // Set Pole Pairs
-            sendSDO_checked(id, SDOkey(0x2030,0x00), 0x0003);
-
-            // Set Encoder Resolution
-            sendSDO_checked(id, SDOkey(0x2052,0x00), -4096);
-            sendSDO_checked(id, SDOkey(0x608F,0x01), 4096);
-
-            // Encoder Health
-            sendSDO_checked(id, SDOkey(0x2055,0x02), 0x8A8E);
-            sendSDO_checked(id, SDOkey(0x2055,0x03), 0xCA92);
-
-            // Deactivate Encoder supervision
-            sendSDO_checked(id, SDOkey(0x2054,0x00), 0xFFFFFFFF);
         }
     }
 
