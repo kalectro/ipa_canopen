@@ -833,15 +833,24 @@ namespace canopen
 
         if(canopen::use_limit_switch)
         {
+            uint16_t low_byte, high_byte;
+            low_byte = m.Msg.DATA[3];
+            high_byte = m.Msg.DATA[4];
+            uint16_t limit_switch = low_byte + (high_byte << 8);
 
+            low_byte = m.Msg.DATA[5];
+            high_byte = m.Msg.DATA[6];
+            uint16_t inputs = low_byte + (high_byte << 8);
 
-            uint16_t limit_switch_ = m.Msg.DATA[2];
-
-            bool hardware_limit_positive = limit_switch_ & 0x02;
-            bool hardware_limit_negative = limit_switch_ & 0x01;
+            bool hardware_limit_positive = limit_switch & 0x02;
+            bool hardware_limit_negative = limit_switch & 0x01;
+            bool input3 = inputs & 0x04;
+            bool input4 = inputs & 0x08;
 
             devices[CANid].setNegativeLimit(hardware_limit_negative);
             devices[CANid].setPositiveLimit(hardware_limit_positive);
+            devices[CANid].setInput3(input3);
+            devices[CANid].setInput4(input4);
         }
 
         bool ready_switch_on = mydata_low & 0x01;

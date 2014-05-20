@@ -145,6 +145,7 @@ namespace canopen{
 
             bool hardware_limit_positive_;
             bool hardware_limit_negative_;
+            bool input3_, input4_;
 
 
             bool ready_switch_on_;
@@ -366,6 +367,14 @@ namespace canopen{
                 return hardware_limit_positive_;
             }
 
+            bool getInput3(){
+                return input3_;
+            }
+
+            bool getInput4(){
+                return input4_;
+            }
+
             bool getFault(){
                 return fault_;
             }
@@ -537,11 +546,18 @@ namespace canopen{
                 hardware_limit_positive_ = pos_limit;
             }
 
-
             void setNegativeLimit(bool neg_limit){
                 hardware_limit_negative_ = neg_limit;
             }
             
+            void setInput3(bool value){
+                input3_ = value;
+            }
+
+            void setInput4(bool value){
+                input4_ = value;
+            }
+
             void setNMTInit(bool nmt_limit)
             {
                 nmt_init_ = nmt_limit;
