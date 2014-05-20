@@ -300,6 +300,10 @@ namespace canopen
                                     break;
                             }
 
+                            // Max Velocity
+                            rpdo_registers.push_back("608100");
+                            rpdo_sizes.push_back(0x20);
+
                             tsync_type = SYNC_TYPE_ASYNCHRONOUS;
                             break;
                         case 3:
@@ -632,6 +636,24 @@ namespace canopen
         CAN_Write(h, &msg);
     }
 
+    void sendSDO(uint8_t CANid, SDOkey sdo, int16_t value)
+    {
+        TPCANMsg msg;
+        std::memset(&msg, 0, sizeof(msg));
+        msg.ID = CANid + COB_SDO_RX;
+        msg.LEN = 8;
+        msg.DATA[0] = 0x23;
+        msg.DATA[1] = sdo.index & 0xFF;
+        msg.DATA[2] = (sdo.index >> 8) & 0xFF;
+        msg.DATA[3] = sdo.subindex;
+        msg.DATA[4] = value & 0xFF;
+        msg.DATA[5] = (value >> 8) & 0xFF;
+        msg.DATA[6] = 0x00;
+        msg.DATA[7] = 0x00;
+        CAN_Write(h, &msg);
+        //std::cout << std::hex << (uint16_t)msg.ID << "  " << (uint16_t)msg.DATA[0] << " " << (uint16_t)msg.DATA[1] << " " << (uint16_t)msg.DATA[2] << " " << (uint16_t)msg.DATA[3] << " " << (uint16_t)msg.DATA[4] << " " << (uint16_t)msg.DATA[5] << " " << (uint16_t)msg.DATA[6] << " " << (uint16_t)msg.DATA[7] << std::endl;
+    }
+
     void sendSDO_unknown(uint8_t CANid, SDOkey sdo, int32_t value)
     {
         TPCANMsg msg;
@@ -688,6 +710,7 @@ namespace canopen
 
     void test_sdo_types()
     {
+        sendSDO_checked(0,SDOkey(0,0),(int16_t)0,0,0);
         sendSDO_checked(0,SDOkey(0,0),(int32_t)0,0,0);
         sendSDO_checked(0,SDOkey(0,0),(uint16_t)0,0,0);
         sendSDO_checked(0,SDOkey(0,0),(uint8_t)0,0,0);
@@ -759,12 +782,6 @@ namespace canopen
                         getErrors(id);
                         readManErrReg(id);
                     }
-
-                    if (devices[id].getInitialized())
-                    {
-                        devices[id].updateDesiredPos();
-                        sendPos((uint16_t)id, (double)devices[id].getDesiredPos());
-                    }
                 }
                 canopen::sendSync();
                 std::this_thread::sleep_for(syncInterval - (std::chrono::high_resolution_clock::now() - tic ));
@@ -774,21 +791,23 @@ namespace canopen
     }
 
     std::function< void (uint16_t CANid, double velocityValue) > sendVel;
-    std::function< void (uint16_t CANid, double positionValue) > sendPos;
-    std::function< void (uint16_t CANid, double positionValue, double velocityValue) > sendPosPPMode;
+    std::function< void (uint16_t CANid, int32_t target_position, uint32_t max_velocity) > sendPos;
 
-    void defaultPDOOutgoing_interpolated(uint16_t CANid, double positionValue)
+    void pdo_position_velocity(uint16_t CANid, int32_t target_position, uint32_t max_velocity)
     {
         TPCANMsg msg;
         std::memset(&msg, 0, sizeof(msg));
         msg.ID = COB_PDO2_RX + CANid;
         msg.MSGTYPE = 0x00;
-        msg.LEN = 4;
-        int32_t mdegPos = rad2mdeg(positionValue);
-        msg.DATA[0] = mdegPos & 0xFF;
-        msg.DATA[1] = (mdegPos >> 8) & 0xFF;
-        msg.DATA[2] = (mdegPos >> 16) & 0xFF;
-        msg.DATA[3] = (mdegPos >> 24) & 0xFF;
+        msg.LEN = 8;
+        msg.DATA[0] = target_position & 0xFF;
+        msg.DATA[1] = (target_position >> 8) & 0xFF;
+        msg.DATA[2] = (target_position >> 16) & 0xFF;
+        msg.DATA[3] = (target_position >> 24) & 0xFF;
+        msg.DATA[4] = max_velocity & 0xFF;
+        msg.DATA[5] = (max_velocity >> 8) & 0xFF;
+        msg.DATA[6] = (max_velocity >> 16) & 0xFF;
+        msg.DATA[7] = (max_velocity >> 24) & 0xFF;
         CAN_Write(h, &msg);
     }
 
@@ -829,7 +848,6 @@ namespace canopen
         bool switched_on = mydata_low & 0x02;
         bool op_enable = mydata_low & 0x04;
         bool fault = mydata_low & 0x08;
-        // std::cout << "fault PDO" << fault << std::endl;
         bool volt_enable = mydata_low & 0x10;
         bool quick_stop = mydata_low & 0x20;
         bool switch_on_disabled = mydata_low & 0x40;
@@ -843,9 +861,7 @@ namespace canopen
         bool op_specific1 = mydata_high & 0x20;
         bool man_specific1 = mydata_high & 0x40;
         bool man_specific2 = mydata_high & 0x80;
-
         bool ip_mode = ready_switch_on & switched_on & op_enable & volt_enable;
-
 
         if(!ready_switch_on)
         {
@@ -911,8 +927,7 @@ namespace canopen
         devices[CANid].setCurrentModeofOperation(mode_display);
 
 
-
-        // std::cout << "Motor State of Device with CANid " << (uint16_t)CANid << " is: " << devices[CANid].getMotorState() << std::endl;
+        //std::cout << std::hex << (uint16_t)m.Msg.ID << "  " << (uint16_t)m.Msg.DATA[0] << " " << (uint16_t)m.Msg.DATA[1] << " " << (uint16_t)m.Msg.DATA[2] << " " << (uint16_t)m.Msg.DATA[3] << " " << (uint16_t)m.Msg.DATA[4] << " " << (uint16_t)m.Msg.DATA[5] << " " << (uint16_t)m.Msg.DATA[6] << " " << (uint16_t)m.Msg.DATA[7] << std::endl;
     }
 
     void defaultPDO_incoming_pos(uint16_t CANid, const TPCANRdMsg m)

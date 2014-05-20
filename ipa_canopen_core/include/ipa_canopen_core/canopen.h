@@ -787,8 +787,7 @@ namespace canopen{
     void pre_init(std::string chainName);
     bool recover(std::string chainName, const int8_t mode_of_operation);
 
-    extern std::function< void (uint16_t CANid, double positionValue) > sendPos;
-    extern std::function< void (uint16_t CANid, double positionValue, double velocityValue) > sendPosPPMode;
+    extern std::function< void (uint16_t CANid, int32_t target_position, uint32_t max_velocity) > sendPos;
     extern std::function< void (uint16_t CANid, double velocityValue) > sendVel;
     extern std::function< void (uint16_t CANid) > geterrors;
 
@@ -993,6 +992,7 @@ namespace canopen{
 
     void sendSDO(uint8_t CANid, SDOkey sdo, uint32_t value);
     void sendSDO(uint8_t CANid, SDOkey sdo, int32_t value);
+    void sendSDO(uint8_t CANid, SDOkey sdo, int16_t value);
     void sendSDO_unknown(uint8_t CANid, SDOkey sdo, int32_t value);
     void sendSDO(uint8_t CANid, SDOkey sdo, uint16_t value);
     void sendSDO(uint8_t CANid, SDOkey sdo, uint8_t value);
@@ -1008,7 +1008,7 @@ namespace canopen{
     void initDeviceManagerThread(std::string chainName, std::function<void (std::string)> const& deviceManager);
     void deviceManager(std::string chainName);
 
-    void defaultPDOOutgoing_interpolated(uint16_t CANid, double positionValue);
+    void pdo_position_velocity(uint16_t CANid, int32_t target_position, uint32_t max_velocity);
     void defaultPDO_incoming_status(uint16_t CANid, const TPCANRdMsg m);
     void defaultPDO_incoming_pos(uint16_t CANid, const TPCANRdMsg m);
     void defaultEMCY_incoming(uint16_t CANid, const TPCANRdMsg m);

@@ -16,7 +16,6 @@
 
   <buildtool_depend>catkin</buildtool_depend>
   <run_depend>ipa_canopen_core</run_depend>
-  <run_depend>ipa_canopen_ros</run_depend>
 
   <export>
     <metapackage/>
