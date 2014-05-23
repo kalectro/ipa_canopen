@@ -81,7 +81,7 @@ namespace canopen
     std::vector<std::string> openDeviceFiles;
     bool atFirstInit=true;
     int initTrials=0;
-    std::map<SDOkey, std::function<void (uint8_t CANid, BYTE data[8])> > incomingDataHandlers { { STATUSWORD, sdo_incoming }, { DRIVERTEMPERATURE, sdo_incoming }, { MODES_OF_OPERATION_DISPLAY, sdo_incoming } };
+    std::map<SDOkey, std::function<void (uint8_t CANid, BYTE data[8])> > incomingDataHandlers {{ DRIVERTEMPERATURE, sdo_incoming }};
     std::map<SDOkey, std::function<void (uint8_t CANid, BYTE data[8])> > incomingErrorHandlers { { ERRORWORD, errorword_incoming }, { MANUFACTURER, errorword_incoming } };
     std::map<SDOkey, std::function<void (uint8_t CANid, BYTE data[8])> > incomingManufacturerDetails { {MANUFACTURERHWVERSION, manufacturer_incoming}, {MANUFACTURERDEVICENAME, manufacturer_incoming}, {MANUFACTURERSOFTWAREVERSION, manufacturer_incoming} };
     std::map<uint16_t, std::function<void (const TPCANRdMsg m)> > incomingPDOHandlers;
@@ -307,6 +307,15 @@ namespace canopen
                             tsync_type = SYNC_TYPE_ASYNCHRONOUS;
                             break;
                         case 3:
+                            // Profile Acceleration
+                            rpdo_registers.push_back("608300");
+                            rpdo_sizes.push_back(0x20);
+
+                            //Profile Deceleration
+                            rpdo_registers.push_back("608400");
+                            rpdo_sizes.push_back(0x20);
+
+                            rsync_type = SYNC_TYPE_ASYNCHRONOUS;
                             break;
                         case 4:
                             break;
@@ -362,22 +371,17 @@ namespace canopen
             else
             {
 
-                canopen::controlPDO(id,canopen::CONTROLWORD_HALT);
-                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                controlPDO(id,CONTROLWORD_HALT);
+                controlPDO(id,CONTROLWORD_QUICKSTOP);
+                sendSDO(id, MODES_OF_OPERATION, mode_of_operation);
 
-                canopen::controlPDO(id,canopen::CONTROLWORD_QUICKSTOP);
-                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                setMotorState(id, MS_SWITCHED_ON_DISABLED);
+                setMotorState(id, MS_OPERATION_ENABLED);
 
-                canopen::sendSDO_checked(id, canopen::MODES_OF_OPERATION, mode_of_operation);
+                uploadSDO(id, STATUSWORD);
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
-
-                canopen::setMotorState(id, canopen::MS_SWITCHED_ON_DISABLED);
-                canopen::setMotorState(id, canopen::MS_OPERATION_ENABLED);
-
-                canopen::uploadSDO(id, canopen::STATUSWORD);
-                std::this_thread::sleep_for(std::chrono::milliseconds(10));
-                canopen::uploadSDO(id, DRIVERTEMPERATURE);
-                canopen::uploadSDO(id, MODES_OF_OPERATION_DISPLAY);
+                uploadSDO(id, DRIVERTEMPERATURE);
+                uploadSDO(id, MODES_OF_OPERATION_DISPLAY);
 
                 getErrors(id);
             }
@@ -422,17 +426,14 @@ namespace canopen
                 devices[CANid].getMotorState() != MS_SWITCHED_ON_DISABLED &&
                 devices[CANid].getMotorState() != MS_SWITCHED_ON)
         {
-            std::cout << "Found motor in state " << devices[CANid].getMotorState() << ", need to adjust state to SWITCHED_ON" << std::endl;
+            std::cout << "Found motor in state " << devices[CANid].getMotorState() << ", adjusting to SWITCHED_ON" << std::endl;
             setMotorState(CANid, canopen::MS_SWITCHED_ON);
         }
 
-        canopen::sendSDO_checked(CANid, canopen::MODES_OF_OPERATION, (uint8_t)targetMode);
+        sendSDO(CANid, MODES_OF_OPERATION, (int8_t)targetMode);
         // check operation mode until correct mode is returned
         while (devices[CANid].getCurrentModeofOperation() != targetMode)
         {
-            canopen::uploadSDO(CANid, canopen::MODES_OF_OPERATION_DISPLAY);
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
-
             // timeout check
             time_end = std::chrono::high_resolution_clock::now();
             std::chrono::duration<double> elapsed_seconds = time_end-time_start;
@@ -513,28 +514,23 @@ namespace canopen
             {
                 if (targetState == MS_SWITCHED_ON_DISABLED)
                 {
-                    canopen::sendSDO_checked(CANid, canopen::CONTROLWORD, canopen::CONTROL_WORD_DISABLE_VOLTAGE);
+                    sendSDO(CANid, CONTROLWORD, CONTROL_WORD_DISABLE_VOLTAGE);
                 }
                 else if (targetState == MS_READY_TO_SWITCH_ON)
                 {
-                    canopen::sendSDO_checked(CANid, canopen::CONTROLWORD, canopen::CONTROLWORD_SHUTDOWN);
+                    sendSDO(CANid, CONTROLWORD, CONTROLWORD_SHUTDOWN);
                 }
                 else
                 {
-                    canopen::sendSDO_checked(CANid, canopen::CONTROLWORD, canopen::CONTROLWORD_DISABLE_OPERATION);
+                    sendSDO(CANid, CONTROLWORD, CONTROLWORD_DISABLE_OPERATION);
                 }
             }
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
         return true;
     }
 
     TPCANMsg NMTmsg;
     TPCANMsg syncMsg;
-
-    /***************************************************************/
-    //		define SDO protocol functions
-    /***************************************************************/
 
     void requestDataBlock1(uint8_t CANid)
     {
@@ -602,133 +598,48 @@ namespace canopen
         CAN_Write(h, &msg);
     }
 
-    void sendSDO(uint8_t CANid, SDOkey sdo, uint32_t value)
-    {
-        TPCANMsg msg;
-        std::memset(&msg, 0, sizeof(msg));
-        msg.ID = CANid + COB_SDO_RX;
-        msg.LEN = 8;
-        msg.DATA[0] = 0x23;
-        msg.DATA[1] = sdo.index & 0xFF;
-        msg.DATA[2] = (sdo.index >> 8) & 0xFF;
-        msg.DATA[3] = sdo.subindex;
-        msg.DATA[4] = value & 0xFF;
-        msg.DATA[5] = (value >> 8) & 0xFF;
-        msg.DATA[6] = (value >> 16) & 0xFF;
-        msg.DATA[7] = (value >> 24) & 0xFF;
-        CAN_Write(h, &msg);
-    }
-
-    void sendSDO(uint8_t CANid, SDOkey sdo, int32_t value)
-    {
-        TPCANMsg msg;
-        std::memset(&msg, 0, sizeof(msg));
-        msg.ID = CANid + COB_SDO_RX;
-        msg.LEN = 8;
-        msg.DATA[0] = 0x23;
-        msg.DATA[1] = sdo.index & 0xFF;
-        msg.DATA[2] = (sdo.index >> 8) & 0xFF;
-        msg.DATA[3] = sdo.subindex;
-        msg.DATA[4] = value & 0xFF;
-        msg.DATA[5] = (value >> 8) & 0xFF;
-        msg.DATA[6] = (value >> 16) & 0xFF;
-        msg.DATA[7] = (value >> 24) & 0xFF;
-        CAN_Write(h, &msg);
-    }
-
-    void sendSDO(uint8_t CANid, SDOkey sdo, int16_t value)
-    {
-        TPCANMsg msg;
-        std::memset(&msg, 0, sizeof(msg));
-        msg.ID = CANid + COB_SDO_RX;
-        msg.LEN = 8;
-        msg.DATA[0] = 0x23;
-        msg.DATA[1] = sdo.index & 0xFF;
-        msg.DATA[2] = (sdo.index >> 8) & 0xFF;
-        msg.DATA[3] = sdo.subindex;
-        msg.DATA[4] = value & 0xFF;
-        msg.DATA[5] = (value >> 8) & 0xFF;
-        msg.DATA[6] = 0x00;
-        msg.DATA[7] = 0x00;
-        CAN_Write(h, &msg);
-        //std::cout << std::hex << (uint16_t)msg.ID << "  " << (uint16_t)msg.DATA[0] << " " << (uint16_t)msg.DATA[1] << " " << (uint16_t)msg.DATA[2] << " " << (uint16_t)msg.DATA[3] << " " << (uint16_t)msg.DATA[4] << " " << (uint16_t)msg.DATA[5] << " " << (uint16_t)msg.DATA[6] << " " << (uint16_t)msg.DATA[7] << std::endl;
-    }
-
-    void sendSDO_unknown(uint8_t CANid, SDOkey sdo, int32_t value)
-    {
-        TPCANMsg msg;
-        std::memset(&msg, 0, sizeof(msg));
-        msg.ID = CANid + COB_SDO_RX;
-        msg.LEN = 8;
-        msg.DATA[0] = 0x22;
-        msg.DATA[1] = sdo.index & 0xFF;
-        msg.DATA[2] = (sdo.index >> 8) & 0xFF;
-        msg.DATA[3] = sdo.subindex;
-        msg.DATA[4] = value & 0xFF;
-        msg.DATA[5] = (value >> 8) & 0xFF;
-        msg.DATA[6] = (value >> 16) & 0xFF;
-        msg.DATA[7] = (value >> 24) & 0xFF;
-        CAN_Write(h, &msg);
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    }
-
-    void sendSDO(uint8_t CANid, SDOkey sdo, uint8_t value)
-    {
-        TPCANMsg msg;
-        std::memset(&msg, 0, sizeof(msg));
-        msg.ID = CANid + COB_SDO_RX;
-        msg.LEN = 8;
-        msg.DATA[0] = 0x2F;
-        msg.DATA[1] = sdo.index & 0xFF;
-        msg.DATA[2] = (sdo.index >> 8) & 0xFF;
-        msg.DATA[3] = sdo.subindex;
-        msg.DATA[4] = value & 0xFF;
-        msg.DATA[5] = 0x00;
-        msg.DATA[6] = 0x00;
-        msg.DATA[7] = 0x00;
-        CAN_Write(h, &msg);
-
-
-    }
-
-    void sendSDO(uint8_t CANid, SDOkey sdo, uint16_t value)
-    {
-        TPCANMsg msg;
-        std::memset(&msg, 0, sizeof(msg));
-        msg.ID = CANid + COB_SDO_RX;
-        msg.LEN = 8;
-        msg.DATA[0] = 0x2B;
-        msg.DATA[1] = sdo.index & 0xFF;
-        msg.DATA[2] = (sdo.index >> 8) & 0xFF;
-        msg.DATA[3] = sdo.subindex;
-        msg.DATA[4] = value & 0xFF;
-        msg.DATA[5] = (value >> 8) & 0xFF;
-        msg.DATA[6] = 0x00;
-        msg.DATA[7] = 0x00;
-        CAN_Write(h, &msg);
-    }
-
     void test_sdo_types()
     {
-        sendSDO_checked(0,SDOkey(0,0),(int16_t)0,0,0);
-        sendSDO_checked(0,SDOkey(0,0),(int32_t)0,0,0);
-        sendSDO_checked(0,SDOkey(0,0),(uint16_t)0,0,0);
-        sendSDO_checked(0,SDOkey(0,0),(uint8_t)0,0,0);
-        sendSDO_checked(0,SDOkey(0,0),(uint32_t)0,0,0);
+        sendSDO(0,SDOkey(0,0),(uint8_t)0,0,0);
+        sendSDO(0,SDOkey(0,0),(int8_t)0,0,0);
+        sendSDO(0,SDOkey(0,0),(uint16_t)0,0,0);
+        sendSDO(0,SDOkey(0,0),(int16_t)0,0,0);
+        sendSDO(0,SDOkey(0,0),(uint32_t)0,0,0);
+        sendSDO(0,SDOkey(0,0),(int32_t)0,0,0);
     }
 
     template< class IntType >
-    bool sendSDO_checked(uint8_t CANid, SDOkey sdo, IntType value, int32_t trials, double timeout)
+    bool sendSDO(uint8_t CANid, SDOkey sdo, IntType value, bool verify, int32_t trials, double timeout)
     {
         std::chrono::time_point<std::chrono::high_resolution_clock> time_start, time_end;
         std::chrono::duration<double> elapsed_seconds;
+        // build SDO message
+        TPCANMsg msg;
+        int size_of_value = sizeof(value);
+        std::memset(&msg, 0, sizeof(msg));
+        msg.ID = CANid + COB_SDO_RX;
+        msg.LEN = 4 + size_of_value;
+        // Bit 5 = download request, Bit 2-3 = not used bytes, Bit 1 = expedited, Bit 0 = size indicated
+        msg.DATA[0] = (1 << 5) + ((4-size_of_value) << 2) + (1 << 1) + (1 << 0);
+        msg.DATA[1] = sdo.index & 0xFF;
+        msg.DATA[2] = (sdo.index >> 8) & 0xFF;
+        msg.DATA[3] = sdo.subindex;
+        msg.DATA[4] = value & 0xFF;
+        msg.DATA[5] = (value >> 8) & 0xFF;
+        msg.DATA[6] = (value >> 16) & 0xFF;
+        msg.DATA[7] = (value >> 24) & 0xFF;
+
         int32_t trial_counter = 0;
         requested_sdo.index = 0; // make sure no old values are used
         time_start = std::chrono::high_resolution_clock::now();
         while(requested_sdo.index != sdo.index || requested_sdo.subindex != sdo.subindex || requested_sdo.value != value)
         {
             // Send new value
-            sendSDO(CANid, sdo, value);
+            CAN_Write(h, &msg);
+
+            if(verify == false)
+                return true;
+
             // Check if value was written
             uploadSDO(CANid,sdo);
             time_end = std::chrono::high_resolution_clock::now();
@@ -747,10 +658,6 @@ namespace canopen
         }
         return true;
     }
-
-    /***************************************************************/
-    //		define PDO protocol functions
-    /***************************************************************/
 
     void initDeviceManagerThread(std::string chainName, std::function<void (std::string)> const& deviceManager)
     {
@@ -949,10 +856,6 @@ namespace canopen
         devices[CANid].setTimeStamp_usec(std::chrono::microseconds(m.wUsec));
     }
 
-    /***************************************************************/
-    //		define functions for receiving data
-    /***************************************************************/
-
     void initListenerThread(std::function<void ()> const& listener)
     {
         std::thread listener_thread(listener);
@@ -1048,9 +951,6 @@ namespace canopen
         }
     }
 
-    /******************************************************************************
- * Define get errors function
- *****************************************************************************/
     void getErrors(uint16_t CANid)
     {
         canopen::uploadSDO(CANid, canopen::ERRORWORD);
@@ -1491,32 +1391,26 @@ namespace canopen
     {
         for (auto id : canopen::deviceGroups[chainName].getCANids())
         {
-            if(object == 0)
+            int32_t data;
+            switch(object)
             {
-                int32_t data = (canopen::RPDO1_msg + id)  + (0x00 << 16) + (0x80 << 24);
-                sendSDO(id, SDOkey(RPDO.index+object,0x01), data);
+                case 0:
+                    data = (canopen::RPDO1_msg + id)  + (0x00 << 16) + (0x80 << 24);
+                    break;
+                case 1:
+                    data = (canopen::RPDO2_msg + id)  + (0x00 << 16) + (0x80 << 24);
+                    break;
+                case 2:
+                    data = (canopen::RPDO3_msg + id)  + (0x00 << 16) + (0x80 << 24);
+                    break;
+                case 3:
+                    data = (canopen::RPDO4_msg + id)  + (0x00 << 16) + (0x80 << 24);
+                    break;
+                default:
+                    std::cout << "BAD OBJECT NUMBER IN disableRPDO! Number is " << object << std::endl;
+                    return;
             }
-            else if(object == 1)
-            {
-                int32_t data = (canopen::RPDO2_msg + id)  + (0x00 << 16) + (0x80 << 24);
-                sendSDO(id, SDOkey(RPDO.index+object,0x01), data);
-
-            }
-
-            else if(object == 2)
-            {
-                int32_t data = (canopen::RPDO3_msg + id)  + (0x00 << 16) + (0x80 << 24);
-                sendSDO(id, SDOkey(RPDO.index+object,0x01), data);
-            }
-
-            else if(object == 3)
-
-            {
-                int32_t data = (canopen::RPDO4_msg + id)  + (0x00 << 16) + (0x80 << 24);
-                sendSDO(id, SDOkey(RPDO.index+object,0x01), data);
-            }
-
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            sendSDO(id, SDOkey(RPDO.index+object,0x01), data, false);
         }
     }
 
@@ -1524,7 +1418,7 @@ namespace canopen
     {
         for (auto id : canopen::deviceGroups[chainName].getCANids())
         {
-            sendSDO_checked(id, SDOkey(RPDO_map.index+object,0x00), (uint8_t)0x00);
+            sendSDO(id, SDOkey(RPDO_map.index+object,0x00), (uint8_t)0x00);
         }
     }
 
@@ -1542,13 +1436,13 @@ namespace canopen
                 str_stream >> std::hex >> index_data;
 
                 int32_t data = (sizes[counter]) + (index_data << 8);
-                sendSDO_checked(id, SDOkey(RPDO_map.index + object, counter + 1), data);
+                sendSDO(id, SDOkey(RPDO_map.index + object, counter + 1), data);
 
                 ext_counter++;
             }
 
-            sendSDO_checked(id, SDOkey(RPDO.index+object,0x02), u_int8_t(sync_type));
-            sendSDO_checked(id, SDOkey(RPDO_map.index+object,0x00), u_int8_t(ext_counter));
+            sendSDO(id, SDOkey(RPDO.index+object,0x02), u_int8_t(sync_type));
+            sendSDO(id, SDOkey(RPDO_map.index+object,0x00), u_int8_t(ext_counter));
         }
     }
 
@@ -1575,7 +1469,7 @@ namespace canopen
                     std::cout << "wrong object number in enableRPDO" << std::endl;
                     return;
             }
-            sendSDO_checked(id, SDOkey(RPDO.index+object,0x01), data);
+            sendSDO(id, SDOkey(RPDO.index+object,0x01), data);
         }
     }
 
@@ -1602,8 +1496,7 @@ namespace canopen
                     std::cout << "Incorrect object for mapping" << std::endl;
                     return;
             }
-            sendSDO(id, SDOkey(TPDO.index+object,0x01), data);
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            sendSDO(id, SDOkey(TPDO.index+object,0x01), data, false);
         }
     }
 
@@ -1611,7 +1504,7 @@ namespace canopen
     {
         for (auto id : canopen::deviceGroups[chainName].getCANids())
         {
-            sendSDO_checked(id, SDOkey(TPDO_map.index+object,0x00), uint8_t(0x00));
+            sendSDO(id, SDOkey(TPDO_map.index+object,0x00), uint8_t(0x00));
         }
     }
 
@@ -1629,13 +1522,13 @@ namespace canopen
                 str_stream >> std::hex >> index_data;
 
                 int32_t data = (sizes[counter]) + (index_data << 8);
-                sendSDO_checked(id, SDOkey(TPDO_map.index + object, counter + 1), data);
+                sendSDO(id, SDOkey(TPDO_map.index + object, counter + 1), data);
 
                 ext_counter++;
             }
 
-            sendSDO_checked(id, SDOkey(TPDO.index+object,0x02), u_int8_t(sync_type));
-            sendSDO_checked(id, SDOkey(TPDO_map.index+object,0x00), u_int8_t(ext_counter));
+            sendSDO(id, SDOkey(TPDO.index+object,0x02), u_int8_t(sync_type));
+            sendSDO(id, SDOkey(TPDO_map.index+object,0x00), u_int8_t(ext_counter));
         }
 
     }
@@ -1663,7 +1556,7 @@ namespace canopen
                     std::cout << "Incorrect object number handed over to enableTPDO" << std::endl;
                     return;
             }
-            sendSDO_checked(id, SDOkey(TPDO.index+object,0x01), data);
+            sendSDO(id, SDOkey(TPDO.index+object,0x01), data);
         }
     }
 

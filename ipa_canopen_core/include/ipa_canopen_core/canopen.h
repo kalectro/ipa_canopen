@@ -747,8 +747,8 @@ namespace canopen{
     /***************************************************************/
 
     void setNMTState(uint16_t CANid, std::string targetState);
-    bool setMotorState(uint16_t CANid, std::string targetState, double timeout = 3.0);
-    bool setOperationMode(uint16_t CANid, const int8_t targetMode, double timeout = 3.0);
+    bool setMotorState(uint16_t CANid, std::string targetState, double timeout = 5.0);
+    bool setOperationMode(uint16_t CANid, const int8_t targetMode, double timeout = 5.0);
 
     /***************************************************************/
     //	define get errors functions
@@ -1006,14 +1006,9 @@ namespace canopen{
     void requestDataBlock1(uint8_t CANid);
     void requestDataBlock2(uint8_t CANid);
 
-    void sendSDO(uint8_t CANid, SDOkey sdo, uint32_t value);
-    void sendSDO(uint8_t CANid, SDOkey sdo, int32_t value);
-    void sendSDO(uint8_t CANid, SDOkey sdo, int16_t value);
-    void sendSDO_unknown(uint8_t CANid, SDOkey sdo, int32_t value);
-    void sendSDO(uint8_t CANid, SDOkey sdo, uint16_t value);
-    void sendSDO(uint8_t CANid, SDOkey sdo, uint8_t value);
     template< class IntType >
-    bool sendSDO_checked(uint8_t CANid, SDOkey sdo, IntType value, int32_t trials = 5, double timeout = 1.0);
+    bool sendSDO(uint8_t CANid, SDOkey sdo, IntType value, bool verify = true, int32_t trials = 5, double timeout = 1.0);
+    // test all possible int types allowed to make sure they are built into the library
     void test_sdo_types();
 
 
