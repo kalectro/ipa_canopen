@@ -336,6 +336,7 @@ namespace canopen
             getErrors(id);
             readManErrReg(id);
 
+            uploadSDO(id, STATUSWORD);
             if(canopen::setOperationMode(id, mode_of_operation) == false)
             {
                 std::cout << "Could not set operation mode :(" << std::endl;
@@ -459,19 +460,14 @@ namespace canopen
 
             if(elapsed_seconds.count() > timeout)
                 return false;
-            canopen::uploadSDO(CANid, canopen::STATUSWORD);
             if(devices[CANid].getMotorState() == MS_FAULT)
             {
-                canopen::uploadSDO(CANid, canopen::STATUSWORD);
-                std::this_thread::sleep_for(std::chrono::milliseconds(50));
-
                 if(!devices[CANid].getFault())
                 {
                     canopen::controlPDO(CANid, canopen::CONTROLWORD_FAULT_RESET_0);
                 }
                 else
                 {
-                    //std::this_thread::sleep_for(std::chrono::milliseconds(50));
                     canopen::controlPDO(CANid, canopen::CONTROLWORD_FAULT_RESET_1);
                 }
             }
@@ -697,10 +693,7 @@ namespace canopen
         }
     }
 
-    std::function< void (uint16_t CANid, double velocityValue) > sendVel;
-    std::function< void (uint16_t CANid, int32_t target_position, uint32_t max_velocity) > sendPos;
-
-    void pdo_position_velocity(uint16_t CANid, int32_t target_position, uint32_t max_velocity)
+    void RPDO2_outgoing(uint16_t CANid, int32_t target_position, uint32_t max_velocity)
     {
         TPCANMsg msg;
         std::memset(&msg, 0, sizeof(msg));
@@ -730,7 +723,7 @@ namespace canopen
 
     }
 
-    void defaultPDO_incoming_status(uint16_t CANid, const TPCANRdMsg m)
+    void TPDO1_incoming(uint16_t CANid, const TPCANRdMsg m)
     {
 
         uint16_t mydata_low = m.Msg.DATA[0];
@@ -846,7 +839,7 @@ namespace canopen
         //std::cout << std::hex << (uint16_t)m.Msg.ID << "  " << (uint16_t)m.Msg.DATA[0] << " " << (uint16_t)m.Msg.DATA[1] << " " << (uint16_t)m.Msg.DATA[2] << " " << (uint16_t)m.Msg.DATA[3] << " " << (uint16_t)m.Msg.DATA[4] << " " << (uint16_t)m.Msg.DATA[5] << " " << (uint16_t)m.Msg.DATA[6] << " " << (uint16_t)m.Msg.DATA[7] << std::endl;
     }
 
-    void defaultPDO_incoming_pos(uint16_t CANid, const TPCANRdMsg m)
+    void TPDO2_incoming(uint16_t CANid, const TPCANRdMsg m)
     {
         double newPos = mdeg2rad(m.Msg.DATA[0] + (m.Msg.DATA[1] << 8) + (m.Msg.DATA[2] << 16) + (m.Msg.DATA[3] << 24));
 

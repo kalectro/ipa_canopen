@@ -803,8 +803,6 @@ namespace canopen{
     void pre_init(std::string chainName);
     bool recover(std::string chainName, const int8_t mode_of_operation);
 
-    extern std::function< void (uint16_t CANid, int32_t target_position, uint32_t max_velocity) > sendPos;
-    extern std::function< void (uint16_t CANid, double velocityValue) > sendVel;
     extern std::function< void (uint16_t CANid) > geterrors;
 
 
@@ -884,6 +882,7 @@ namespace canopen{
     const std::string MS_OPERATION_ENABLED = "OPERATION_ENABLED";
     const std::string MS_QUICK_STOP_ACTIVE = "QUICK_STOP_ACTIVE";
     const std::string MS_FAULT_REACTION_ACTIVE = "FAULT_REACTION_ACTIVE";
+    const std::string MS_START_UP = "START_UP";
 
     /***************************************************************/
     //		define SDO protocol constants and functions
@@ -1019,9 +1018,9 @@ namespace canopen{
     void initDeviceManagerThread(std::string chainName, std::function<void (std::string)> const& deviceManager);
     void deviceManager(std::string chainName);
 
-    void pdo_position_velocity(uint16_t CANid, int32_t target_position, uint32_t max_velocity);
-    void defaultPDO_incoming_status(uint16_t CANid, const TPCANRdMsg m);
-    void defaultPDO_incoming_pos(uint16_t CANid, const TPCANRdMsg m);
+    void RPDO2_outgoing(uint16_t CANid, int32_t target_position, uint32_t max_velocity);
+    void TPDO1_incoming(uint16_t CANid, const TPCANRdMsg m);
+    void TPDO2_incoming(uint16_t CANid, const TPCANRdMsg m);
     void defaultEMCY_incoming(uint16_t CANid, const TPCANRdMsg m);
 
     /***************************************************************/
