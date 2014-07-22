@@ -111,50 +111,29 @@ namespace canopen
         return true;
     }
 
-    void pre_init(std::string chainName)
-    {
-
-        for (auto id : canopen::deviceGroups[chainName].getCANids())
-        {
-            /*********************************************/
-
-            getErrors(id);
-
-            /***************************************************************/
-            //		Manufacturer specific errors register
-            /***************************************************************/
-            readManErrReg(id);
-
-            /**************************
-       * Hardware and Software Information
-      *************************/
-            canopen::uploadSDO(id, MANUFACTURERDEVICENAME);
-        }
-    }
-
-    void pdo_map(std::string chain_name, int pdo_id,
+    void pdo_map(uint8_t id, int pdo_id,
                  std::vector<std::string> tpdo_registers, std::vector<int> tpdo_sizes, u_int8_t tsync_type,
                  std::vector<std::string> rpdo_registers, std::vector<int> rpdo_sizes, u_int8_t rsync_type)
     {
         // clear all mappings for given pdo id
-        canopen::disableTPDO(chain_name, pdo_id-1);
-        canopen::clearTPDOMapping(chain_name, pdo_id-1);
-        canopen::disableRPDO(chain_name, pdo_id-1);
-        canopen::clearRPDOMapping(chain_name, pdo_id-1);
+        canopen::disableTPDO(id, pdo_id-1);
+        canopen::clearTPDOMapping(id, pdo_id-1);
+        canopen::disableRPDO(id, pdo_id-1);
+        canopen::clearRPDOMapping(id, pdo_id-1);
 
         if(!tpdo_registers.empty())
         {
-            canopen::makeTPDOMapping(chain_name, pdo_id-1, tpdo_registers, tpdo_sizes, tsync_type);
-            canopen::enableTPDO(chain_name, pdo_id-1);
+            canopen::makeTPDOMapping(id, pdo_id-1, tpdo_registers, tpdo_sizes, tsync_type);
+            canopen::enableTPDO(id, pdo_id-1);
         }
         if(!rpdo_registers.empty())
         {
-            canopen::makeRPDOMapping(chain_name,pdo_id-1, rpdo_registers, rpdo_sizes, rsync_type);
-            canopen::enableRPDO(chain_name, pdo_id-1);
+            canopen::makeRPDOMapping(id,pdo_id-1, rpdo_registers, rpdo_sizes, rsync_type);
+            canopen::enableRPDO(id, pdo_id-1);
         }
     }
 
-    bool init(std::string deviceFile, std::string chainName, const int8_t mode_of_operation)
+    bool init(std::string deviceFile, std::string chainName)
     {
         initTrials++;
 
@@ -210,8 +189,6 @@ namespace canopen
 
             canopen::deviceGroups[chainName].setFirstInit(false);
 
-            canopen::pre_init(chainName);
-
             while(sdo_protect)
             {
                 time_end = std::chrono::high_resolution_clock::now();
@@ -236,7 +213,7 @@ namespace canopen
                     time_end = std::chrono::high_resolution_clock::now();
                     elapsed_seconds = time_end - time_start;
 
-                    if(elapsed_seconds.count() > 25.0)
+                    if(elapsed_seconds.count() > 10.0)
                     {
                         std::cout << "Node: " << (uint16_t)id << " is not ready for operation. Please check for potential problems." << std::endl;
                         return false;
@@ -285,20 +262,11 @@ namespace canopen
                             tpdo_registers.push_back("606400");
                             tpdo_sizes.push_back(0x20);
 
-                            // Position Target Value
-                            switch(mode_of_operation)
-                            {
-                                case MODES_OF_OPERATION_INTERPOLATED_POSITION_MODE:
-                                    rpdo_registers.push_back("60C101");
-                                    rpdo_sizes.push_back(0x20);
-                                    rsync_type = SYNC_TYPE_CYCLIC;
-                                    break;
-                                case MODES_OF_OPERATION_PROFILE_POSITION_MODE:
-                                    rpdo_registers.push_back("607A00");
-                                    rpdo_sizes.push_back(0x20);
-                                    rsync_type = SYNC_TYPE_ASYNCHRONOUS;
-                                    break;
-                            }
+                            // Target Position Value
+                            rpdo_registers.push_back("607A00");
+                            rpdo_sizes.push_back(0x20);
+                            rsync_type = SYNC_TYPE_ASYNCHRONOUS;
+                            break;
 
                             // Max Velocity
                             rpdo_registers.push_back("608100");
@@ -311,19 +279,25 @@ namespace canopen
                             rpdo_registers.push_back("608300");
                             rpdo_sizes.push_back(0x20);
 
-                            //Profile Deceleration
+                            // Profile Deceleration
                             rpdo_registers.push_back("608400");
                             rpdo_sizes.push_back(0x20);
 
                             rsync_type = SYNC_TYPE_ASYNCHRONOUS;
                             break;
                         case 4:
+                            // Target Torque
+                            rpdo_registers.push_back("607100");
+                            rpdo_sizes.push_back(0x10);
+
+                            rsync_type = SYNC_TYPE_ASYNCHRONOUS;
                             break;
                         default:
                             std::cout << "ERROR: There are only 4 PDO channels" << std::endl;
+                            return false;
                             break;
                     }
-                    pdo_map(chainName, pdo_channel, tpdo_registers, tpdo_sizes, tsync_type, rpdo_registers, rpdo_sizes, rsync_type);
+                    pdo_map(id, pdo_channel, tpdo_registers, tpdo_sizes, tsync_type, rpdo_registers, rpdo_sizes, rsync_type);
                 }
                 canopen::sendNMT((u_int8_t)id, canopen::NMT_START_REMOTE_NODE);
                 std::cout << "Initialized the PDO mapping for Node:" << (uint16_t)id << std::endl;
@@ -335,25 +309,8 @@ namespace canopen
         {
             getErrors(id);
             readManErrReg(id);
-
-            uploadSDO(id, STATUSWORD);
-            if(canopen::setOperationMode(id, mode_of_operation) == false)
-            {
-                std::cout << "Could not set operation mode :(" << std::endl;
-            }
-
-            if(setMotorState(id, MS_READY_TO_SWITCH_ON))
-            {
-                std::cout << "Concluded driver side init succesfully for Node" << (uint16_t)id << std::endl;
-                canopen::devices[id].setInitialized(true);
-                initTrials = 0;
-            }
-            else
-            {
-                std::cout << "Problems occured during driver side init for Node" << (uint16_t)id  << std::endl;
-                canopen::devices[id].setInitialized(false);
-                return false;
-            }
+            canopen::devices[id].setInitialized(true);
+            initTrials = 0;
         }
         return true;
     }
@@ -431,6 +388,7 @@ namespace canopen
             setMotorState(CANid, canopen::MS_SWITCHED_ON);
         }
 
+        std::cout << "setting mode to " << int(targetMode) << std::endl;
         sendSDO(CANid, MODES_OF_OPERATION, (int8_t)targetMode);
         // check operation mode until correct mode is returned
         while (devices[CANid].getCurrentModeofOperation() != targetMode)
@@ -644,7 +602,7 @@ namespace canopen
             {
                 if(trial_counter++ >= trials)
                 {
-                    std::cout << std::hex << "Write error to SDO " << sdo.index << "s" << (int)sdo.subindex <<" with value " << (int)value << "  read value " << requested_sdo.value << std::endl;
+                    std::cout << std::hex << "Write error at CANid " << (int)CANid << " to SDO " << sdo.index << "s" << (int)sdo.subindex <<" with value " << (int)value << "  read value " << requested_sdo.value << std::endl;
                     return false;
                 }
                 // Restart timer
@@ -708,6 +666,24 @@ namespace canopen
         msg.DATA[5] = (max_velocity >> 8) & 0xFF;
         msg.DATA[6] = (max_velocity >> 16) & 0xFF;
         msg.DATA[7] = (max_velocity >> 24) & 0xFF;
+        CAN_Write(h, &msg);
+    }
+
+    void RPDO4_outgoing(uint16_t CANid, int16_t target_torque)
+    {
+        TPCANMsg msg;
+        std::memset(&msg, 0, sizeof(msg));
+        msg.ID = COB_PDO4_RX + CANid;
+        msg.MSGTYPE = 0x00;
+        msg.LEN = 8;
+        msg.DATA[0] = target_torque & 0xFF;
+        msg.DATA[1] = (target_torque >> 8) & 0xFF;
+        msg.DATA[2] = 0x00;
+        msg.DATA[3] = 0x00;
+        msg.DATA[4] = 0x00;
+        msg.DATA[5] = 0x00;
+        msg.DATA[6] = 0x00;
+        msg.DATA[7] = 0x00;
         CAN_Write(h, &msg);
     }
 
@@ -1357,33 +1333,8 @@ namespace canopen
         }
     }
 
-    void pdoChanged(std::string chainName)
+    void disableRPDO(uint8_t id, int object)
     {
-        for (auto id : canopen::deviceGroups[chainName].getCANids())
-        {
-            TPCANMsg* mes;
-            //////////////////// Enable tpdo4
-            mes->ID =id + 0x600;
-            mes->MSGTYPE = 0x00;
-            mes->LEN = 8;
-            mes->DATA[0] = 0x2F;
-            mes->DATA[1] = 0x20;
-            mes->DATA[2] = 0x2F;
-            mes->DATA[3] = 0x04;
-            mes->DATA[4] = 0x00;
-            mes->DATA[5] = 0x00;
-            mes->DATA[6] = 0x00;
-            mes->DATA[7] = 0x01;
-            CAN_Write(canopen::h, mes);
-
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        }
-    }
-
-    void disableRPDO(std::string chainName, int object)
-    {
-        for (auto id : canopen::deviceGroups[chainName].getCANids())
-        {
             int32_t data;
             switch(object)
             {
@@ -1404,153 +1355,130 @@ namespace canopen
                     return;
             }
             sendSDO(id, SDOkey(RPDO.index+object,0x01), data, false);
-        }
     }
 
-    void clearRPDOMapping(std::string chainName, int object)
+    void clearRPDOMapping(uint8_t id, int object)
     {
-        for (auto id : canopen::deviceGroups[chainName].getCANids())
-        {
             sendSDO(id, SDOkey(RPDO_map.index+object,0x00), (uint8_t)0x00);
-        }
     }
 
-    void makeRPDOMapping(std::string chainName, int object, std::vector<std::string> registers, std::vector<int> sizes , u_int8_t sync_type)
+    void makeRPDOMapping(uint8_t id, int object, std::vector<std::string> registers, std::vector<int> sizes , u_int8_t sync_type)
     {
-        for (auto id : canopen::deviceGroups[chainName].getCANids())
+        int ext_counter=0;
+        for(int counter=0; counter < registers.size();counter++)
         {
-            int ext_counter=0;
-            for(int counter=0; counter < registers.size();counter++)
-            {
-                int index_data;
+            int index_data;
 
-                std::stringstream str_stream;
-                str_stream << registers[counter];
-                str_stream >> std::hex >> index_data;
+            std::stringstream str_stream;
+            str_stream << registers[counter];
+            str_stream >> std::hex >> index_data;
 
-                int32_t data = (sizes[counter]) + (index_data << 8);
-                sendSDO(id, SDOkey(RPDO_map.index + object, counter + 1), data);
+            int32_t data = (sizes[counter]) + (index_data << 8);
+            sendSDO(id, SDOkey(RPDO_map.index + object, counter + 1), data);
 
-                ext_counter++;
-            }
-
-            sendSDO(id, SDOkey(RPDO.index+object,0x02), u_int8_t(sync_type));
-            sendSDO(id, SDOkey(RPDO_map.index+object,0x00), u_int8_t(ext_counter));
+            ext_counter++;
         }
+
+        sendSDO(id, SDOkey(RPDO.index+object,0x02), u_int8_t(sync_type));
+        sendSDO(id, SDOkey(RPDO_map.index+object,0x00), uint8_t(ext_counter));
     }
 
-    void enableRPDO(std::string chainName, int object)
-    {
-        for (auto id : canopen::deviceGroups[chainName].getCANids())
-        {
-            int32_t data;
-            switch(object)
-            {
-                case 0:
-                    data = COB_PDO1_RX + id;
-                    break;
-                case 1:
-                    data = COB_PDO2_RX + id;
-                    break;
-                case 2:
-                    data = COB_PDO3_RX + id;
-                    break;
-                case 3:
-                    data = COB_PDO4_RX + id;
-                    break;
-                default:
-                    std::cout << "wrong object number in enableRPDO" << std::endl;
-                    return;
-            }
-            sendSDO(id, SDOkey(RPDO.index+object,0x01), data);
-        }
-    }
-
-    void disableTPDO(std::string chainName,int object)
+    void enableRPDO(uint8_t id, int object)
     {
         int32_t data;
-        for(auto id : canopen::deviceGroups[chainName].getCANids())
+        switch(object)
         {
-            switch(object)
-            {
-                case 0:
-                    data = (canopen::TPDO1_msg + id)  + (0x00 << 16) + (0x80 << 24);
-                    break;
-                case 1:
-                    data = (canopen::TPDO2_msg + id)  + (0x00 << 16) + (0x80 << 24);
-                    break;
-                case 2:
-                    data = (canopen::TPDO3_msg + id)  + (0x00 << 16) + (0x80 << 24);
-                    break;
-                case 3:
-                    data = (canopen::TPDO4_msg + id)  + (0x00 << 16) + (0x80 << 24);
-                    break;
-                default:
-                    std::cout << "Incorrect object for mapping" << std::endl;
-                    return;
-            }
-            sendSDO(id, SDOkey(TPDO.index+object,0x01), data, false);
+            case 0:
+                data = COB_PDO1_RX + id;
+                break;
+            case 1:
+                data = COB_PDO2_RX + id;
+                break;
+            case 2:
+                data = COB_PDO3_RX + id;
+                break;
+            case 3:
+                data = COB_PDO4_RX + id;
+                break;
+            default:
+                std::cout << "wrong object number in enableRPDO" << std::endl;
+                return;
         }
+        sendSDO(id, SDOkey(RPDO.index+object,0x01), data);
     }
 
-    void clearTPDOMapping(std::string chainName, int object)
+    void disableTPDO(uint8_t id, int object)
     {
-        for (auto id : canopen::deviceGroups[chainName].getCANids())
+        int32_t data;
+        switch(object)
         {
-            sendSDO(id, SDOkey(TPDO_map.index+object,0x00), uint8_t(0x00));
+            case 0:
+                data = (canopen::TPDO1_msg + id)  + (0x00 << 16) + (0x80 << 24);
+                break;
+            case 1:
+                data = (canopen::TPDO2_msg + id)  + (0x00 << 16) + (0x80 << 24);
+                break;
+            case 2:
+                data = (canopen::TPDO3_msg + id)  + (0x00 << 16) + (0x80 << 24);
+                break;
+            case 3:
+                data = (canopen::TPDO4_msg + id)  + (0x00 << 16) + (0x80 << 24);
+                break;
+            default:
+                std::cout << "Incorrect object for mapping" << std::endl;
+                return;
         }
+        sendSDO(id, SDOkey(TPDO.index+object,0x01), data, false);
     }
 
-    void makeTPDOMapping(std::string chainName, int object, std::vector<std::string> registers, std::vector<int> sizes, u_int8_t sync_type)
+    void clearTPDOMapping(uint8_t id, int object)
     {
-        for (auto id : canopen::deviceGroups[chainName].getCANids())
-        {
-            int ext_counter=0;
-            for(int counter=0; counter < registers.size();counter++)
-            {
-                int index_data;
-
-                std::stringstream str_stream;
-                str_stream << registers[counter];
-                str_stream >> std::hex >> index_data;
-
-                int32_t data = (sizes[counter]) + (index_data << 8);
-                sendSDO(id, SDOkey(TPDO_map.index + object, counter + 1), data);
-
-                ext_counter++;
-            }
-
-            sendSDO(id, SDOkey(TPDO.index+object,0x02), u_int8_t(sync_type));
-            sendSDO(id, SDOkey(TPDO_map.index+object,0x00), u_int8_t(ext_counter));
-        }
-
+        sendSDO(id, SDOkey(TPDO_map.index+object,0x00), uint8_t(0x00));
     }
 
-    void enableTPDO(std::string chainName, int object)
+    void makeTPDOMapping(uint8_t id, int object, std::vector<std::string> registers, std::vector<int> sizes, u_int8_t sync_type)
     {
-        for (auto id : canopen::deviceGroups[chainName].getCANids())
+        int ext_counter=0;
+        for(int counter=0; counter < registers.size();counter++)
         {
-            int32_t data;
-            switch(object)
-            {
-                case 0:
-                    data = COB_PDO1_TX + id;
-                    break;
-                case 1:
-                    data = COB_PDO2_TX + id;
-                    break;
-                case 2:
-                    data = COB_PDO3_TX + id;
-                    break;
-                case 3:
-                    data = COB_PDO4_TX + id;
-                    break;
-                default:
-                    std::cout << "Incorrect object number handed over to enableTPDO" << std::endl;
-                    return;
-            }
-            sendSDO(id, SDOkey(TPDO.index+object,0x01), data);
+            int index_data;
+
+            std::stringstream str_stream;
+            str_stream << registers[counter];
+            str_stream >> std::hex >> index_data;
+
+            int32_t data = (sizes[counter]) + (index_data << 8);
+            sendSDO(id, SDOkey(TPDO_map.index + object, counter + 1), data);
+
+            ext_counter++;
         }
+
+        sendSDO(id, SDOkey(TPDO.index+object,0x02), u_int8_t(sync_type));
+        sendSDO(id, SDOkey(TPDO_map.index+object,0x00), u_int8_t(ext_counter));
+    }
+
+    void enableTPDO(uint8_t id, int object)
+    {
+        int32_t data;
+        switch(object)
+        {
+            case 0:
+                data = COB_PDO1_TX + id;
+                break;
+            case 1:
+                data = COB_PDO2_TX + id;
+                break;
+            case 2:
+                data = COB_PDO3_TX + id;
+                break;
+            case 3:
+                data = COB_PDO4_TX + id;
+                break;
+            default:
+                std::cout << "Incorrect object number handed over to enableTPDO" << std::endl;
+                return;
+        }
+        sendSDO(id, SDOkey(TPDO.index+object,0x01), data);
     }
 
 }

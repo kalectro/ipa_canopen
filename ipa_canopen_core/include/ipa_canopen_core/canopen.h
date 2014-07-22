@@ -77,6 +77,7 @@
 #include <stdint.h>
 #include <inttypes.h>
 #include "schunkErrors.h"
+#include <queue>
 
 namespace canopen{
 
@@ -99,6 +100,13 @@ namespace canopen{
         {"20K" , CAN_BAUD_20K},
         {"10K" , CAN_BAUD_10K},
         {"5K" , CAN_BAUD_5K}
+    };
+
+    struct ProfilePosition
+    {
+        int32_t target;
+        uint32_t max_velocity;
+        u_int16_t control_word;
     };
 
     /***************************************************************/
@@ -169,6 +177,9 @@ namespace canopen{
             double temperature_;
 
         public:
+
+            std::queue <ProfilePosition> position_commands;
+            int32_t ticks_per_rev_or_meter;
 
             Device() {};
 
@@ -753,17 +764,15 @@ namespace canopen{
     /***************************************************************/
     //	define get errors functions
     /***************************************************************/
-    void makeRPDOMapping(std::string chainName,int object, std::vector<std::string> registers, std::vector<int> sizes, u_int8_t sync_type);
-    void disableRPDO(std::string chainName, int object);
-    void clearRPDOMapping(std::string chainName, int object);
-    void enableRPDO(std::string chainName, int object);
+    void makeRPDOMapping(uint8_t id, int object, std::vector<std::string> registers, std::vector<int> sizes, u_int8_t sync_type);
+    void disableRPDO(uint8_t id, int object);
+    void clearRPDOMapping(uint8_t id, int object);
+    void enableRPDO(uint8_t id, int object);
 
-    void makeTPDOMapping(std::string chainName, int object, std::vector<std::string> registers, std::vector<int> sizes, u_int8_t sync_type);
-    void disableTPDO(std::string chainName,int object);
-    void clearTPDOMapping(std::string chainName,int object);
-    void enableTPDO(std::string chainName,int object);
-
-    void pdoChanged(std::string chainName);
+    void makeTPDOMapping(uint8_t, int object, std::vector<std::string> registers, std::vector<int> sizes, u_int8_t sync_type);
+    void disableTPDO(uint8_t id, int object);
+    void clearTPDOMapping(uint8_t id, int object);
+    void enableTPDO(uint8_t id, int object);
 
     void getErrors(uint16_t CANid);
     std::vector<char> obtainManSWVersion(uint16_t CANid, std::shared_ptr<TPCANRdMsg> m);
@@ -792,15 +801,13 @@ namespace canopen{
     extern std::string operation_mode_param;
 
     bool openConnection(std::string devName, std::string baudrate);
-    //Another init option
-    bool init(std::string deviceFile, std::string chainName, std::chrono::milliseconds syncInterval);
-    bool init(std::string deviceFile, std::string chainName, const int8_t mode_of_operation);
+
+    bool init(std::string deviceFile, std::string chainName);
 
     void pdo_map(std::string chain_name, int pdo_id,
              std::vector<std::string> tpdo_registers, std::vector<int> tpdo_sizes, u_int8_t tsync_type,
              std::vector<std::string> rpdo_registers, std::vector<int> rpdo_sizes, u_int8_t rsync_type);
 
-    void pre_init(std::string chainName);
     bool recover(std::string chainName, const int8_t mode_of_operation);
 
     extern std::function< void (uint16_t CANid) > geterrors;
@@ -967,7 +974,7 @@ namespace canopen{
     const int8_t MODES_OF_OPERATION_PROFILE_POSITION_MODE = 0x1;
     const int8_t MODES_OF_OPERATION_VELOCITY_MODE = 0x2;
     const int8_t MODES_OF_OPERATION_PROFILE_VELOCITY_MODE = 0x3;
-    const int8_t MODES_OF_OPERATION_TORQUE_PROFILE_MODE = 0x4;
+    const int8_t MODES_OF_OPERATION_PROFILE_TORQUE_MODE = 0x4;
     const int8_t MODES_OF_OPERATION_INTERPOLATED_POSITION_MODE = 0x7;
 
     const u_int16_t COB_SYNC = 0x80;
@@ -1019,6 +1026,7 @@ namespace canopen{
     void deviceManager(std::string chainName);
 
     void RPDO2_outgoing(uint16_t CANid, int32_t target_position, uint32_t max_velocity);
+    void RPDO4_outgoing(uint16_t CANid, int16_t target_torque);
     void TPDO1_incoming(uint16_t CANid, const TPCANRdMsg m);
     void TPDO2_incoming(uint16_t CANid, const TPCANRdMsg m);
     void defaultEMCY_incoming(uint16_t CANid, const TPCANRdMsg m);
