@@ -88,8 +88,6 @@ namespace canopen
     std::map<uint16_t, std::function<void (const TPCANRdMsg m)> > incomingEMCYHandlers;
     bool recover_active;
 
-    bool use_limit_switch=false;
-
     std::string operation_mode_param;
 
     std::chrono::time_point<std::chrono::high_resolution_clock> start, end;
@@ -133,7 +131,7 @@ namespace canopen
         }
     }
 
-    bool init(std::string deviceFile, std::string chainName)
+    bool init(std::string deviceFile, std::string chainName, uint8_t max_pdo_channels)
     {
         initTrials++;
 
@@ -226,76 +224,103 @@ namespace canopen
                 std::cout << "Node: " << (uint16_t)id << " is now available" << std::endl;
 
                 // Configure PDO channels
-                for (int pdo_channel = 1; pdo_channel <= 4; ++pdo_channel)
+                for (int pdo_channel = 1; pdo_channel <= max_pdo_channels; ++pdo_channel)
                 {
                     std::vector<std::string> tpdo_registers, rpdo_registers;
                     std::vector<int> tpdo_sizes, rpdo_sizes;
                     u_int8_t tsync_type, rsync_type;
-
-                    switch(pdo_channel)
+                    if(devices[id].is_motor)
                     {
-                        case 1:
-                            // Status word
-                            tpdo_registers.push_back("604100");
-                            tpdo_sizes.push_back(0x10);
+                        switch(pdo_channel)
+                        {
+                            case 1:
+                                // Status word
+                                tpdo_registers.push_back("604100");
+                                tpdo_sizes.push_back(0x10);
 
-                            // Mode of operation display
-                            tpdo_registers.push_back("606100");
-                            tpdo_sizes.push_back(0x08);
+                                // Mode of operation display
+                                tpdo_registers.push_back("606100");
+                                tpdo_sizes.push_back(0x08);
 
-                            if(canopen::use_limit_switch)
-                            {
                                 // Digital Inputs
                                 tpdo_registers.push_back("60FD00");
                                 tpdo_sizes.push_back(0x20);
-                            }
 
-                            // Control word
-                            rpdo_registers.push_back("604000");
-                            rpdo_sizes.push_back(0x10);
+                                // Control word
+                                rpdo_registers.push_back("604000");
+                                rpdo_sizes.push_back(0x10);
 
-                            tsync_type = SYNC_TYPE_ASYNCHRONOUS;
-                            rsync_type = SYNC_TYPE_ASYNCHRONOUS;
-                            break;
-                        case 2:
-                            // Position Actual Value
-                            tpdo_registers.push_back("606400");
-                            tpdo_sizes.push_back(0x20);
+                                tsync_type = SYNC_TYPE_ASYNCHRONOUS;
+                                rsync_type = SYNC_TYPE_ASYNCHRONOUS;
+                                break;
+                            case 2:
+                                // Position Actual Value
+                                tpdo_registers.push_back("606400");
+                                tpdo_sizes.push_back(0x20);
 
-                            // Target Position Value
-                            rpdo_registers.push_back("607A00");
-                            rpdo_sizes.push_back(0x20);
-                            rsync_type = SYNC_TYPE_ASYNCHRONOUS;
-                            break;
+                                // Target Position Value
+                                rpdo_registers.push_back("607A00");
+                                rpdo_sizes.push_back(0x20);
+                                rsync_type = SYNC_TYPE_ASYNCHRONOUS;
+                                break;
 
-                            // Max Velocity
-                            rpdo_registers.push_back("608100");
-                            rpdo_sizes.push_back(0x20);
+                                // Max Velocity
+                                rpdo_registers.push_back("608100");
+                                rpdo_sizes.push_back(0x20);
 
-                            tsync_type = SYNC_TYPE_ASYNCHRONOUS;
-                            break;
-                        case 3:
-                            // Profile Acceleration
-                            rpdo_registers.push_back("608300");
-                            rpdo_sizes.push_back(0x20);
+                                tsync_type = SYNC_TYPE_ASYNCHRONOUS;
+                                break;
+                            case 3:
+                                // Profile Acceleration
+                                rpdo_registers.push_back("608300");
+                                rpdo_sizes.push_back(0x20);
 
-                            // Profile Deceleration
-                            rpdo_registers.push_back("608400");
-                            rpdo_sizes.push_back(0x20);
+                                // Profile Deceleration
+                                rpdo_registers.push_back("608400");
+                                rpdo_sizes.push_back(0x20);
 
-                            rsync_type = SYNC_TYPE_ASYNCHRONOUS;
-                            break;
-                        case 4:
-                            // Target Torque
-                            rpdo_registers.push_back("607100");
-                            rpdo_sizes.push_back(0x10);
+                                rsync_type = SYNC_TYPE_ASYNCHRONOUS;
+                                break;
+                            case 4:
+                                // Target Torque
+                                rpdo_registers.push_back("607100");
+                                rpdo_sizes.push_back(0x10);
 
-                            rsync_type = SYNC_TYPE_ASYNCHRONOUS;
-                            break;
-                        default:
-                            std::cout << "ERROR: There are only 4 PDO channels" << std::endl;
-                            return false;
-                            break;
+                                rsync_type = SYNC_TYPE_ASYNCHRONOUS;
+                                break;
+                        }
+                    }
+                    else if(devices[id].is_io_module)
+                    {
+                        switch(pdo_channel)
+                        {
+                            case 1:
+                                // DI0..7
+                                tpdo_registers.push_back("600001");
+                                tpdo_sizes.push_back(0x08);
+
+                                // DI8..15
+                                tpdo_registers.push_back("600002");
+                                tpdo_sizes.push_back(0x08);
+
+                                // DI16..23
+                                tpdo_registers.push_back("600003");
+                                tpdo_sizes.push_back(0x08);
+
+                                tsync_type = SYNC_TYPE_ASYNCHRONOUS;
+                                rsync_type = SYNC_TYPE_ASYNCHRONOUS;
+                                break;
+                            case 2:
+                                break;
+                            case 3:
+                                break;
+                            case 4:
+                                break;
+                            default:
+                                std::cout << "ERROR: There are only 4 PDO channels" << std::endl;
+                                return false;
+                                break;
+                        }
                     }
                     pdo_map(id, pdo_channel, tpdo_registers, tpdo_sizes, tsync_type, rpdo_registers, rpdo_sizes, rsync_type);
                 }
@@ -707,27 +732,24 @@ namespace canopen
 
         int8_t mode_display = m.Msg.DATA[2];
 
-        if(canopen::use_limit_switch)
-        {
-            uint16_t low_byte, high_byte;
-            low_byte = m.Msg.DATA[3];
-            high_byte = m.Msg.DATA[4];
-            uint16_t limit_switch = low_byte + (high_byte << 8);
+        uint16_t low_byte, high_byte;
+        low_byte = m.Msg.DATA[3];
+        high_byte = m.Msg.DATA[4];
+        uint16_t limit_switch = low_byte + (high_byte << 8);
 
-            low_byte = m.Msg.DATA[5];
-            high_byte = m.Msg.DATA[6];
-            uint16_t inputs = low_byte + (high_byte << 8);
+        low_byte = m.Msg.DATA[5];
+        high_byte = m.Msg.DATA[6];
+        uint16_t inputs = low_byte + (high_byte << 8);
 
-            bool hardware_limit_positive = limit_switch & 0x02;
-            bool hardware_limit_negative = limit_switch & 0x01;
-            bool input3 = inputs & 0x04;
-            bool input4 = inputs & 0x08;
+        bool hardware_limit_positive = limit_switch & 0x02;
+        bool hardware_limit_negative = limit_switch & 0x01;
+        bool input3 = inputs & 0x04;
+        bool input4 = inputs & 0x08;
 
-            devices[CANid].setNegativeLimit(hardware_limit_negative);
-            devices[CANid].setPositiveLimit(hardware_limit_positive);
-            devices[CANid].setInput3(input3);
-            devices[CANid].setInput4(input4);
-        }
+        devices[CANid].setNegativeLimit(hardware_limit_negative);
+        devices[CANid].setPositiveLimit(hardware_limit_positive);
+        devices[CANid].setInput3(input3);
+        devices[CANid].setInput4(input4);
 
         bool ready_switch_on = mydata_low & 0x01;
         bool switched_on = mydata_low & 0x02;
@@ -825,6 +847,16 @@ namespace canopen
         devices[CANid].setTimeStamp_usec(std::chrono::microseconds(m.wUsec));
     }
 
+    void TPDO1_incoming_io(uint16_t CANid, const TPCANRdMsg m)
+    {
+        devices[CANid].inputs = 0;
+        for(int i=0; i<8; ++i)
+        {
+            devices[CANid].inputs += ((uint64_t)m.Msg.DATA[i]) << (8*i);
+        }
+    }
+
+
     void initListenerThread(std::function<void ()> const& listener)
     {
         std::thread listener_thread(listener);
@@ -908,8 +940,7 @@ namespace canopen
                 }
                 else
                 {
-                    std::cout << "Node:" << CANid << " could not be found on the required devices list." << std::endl;
-                    std::cout << "Ignoring" << std::endl;
+                    std::cout << "Node:" << CANid << " could not be found on the required devices list... ignoring" << std::endl;
                 }
 
             }
@@ -1335,31 +1366,31 @@ namespace canopen
 
     void disableRPDO(uint8_t id, int object)
     {
-            int32_t data;
-            switch(object)
-            {
-                case 0:
-                    data = (canopen::RPDO1_msg + id)  + (0x00 << 16) + (0x80 << 24);
-                    break;
-                case 1:
-                    data = (canopen::RPDO2_msg + id)  + (0x00 << 16) + (0x80 << 24);
-                    break;
-                case 2:
-                    data = (canopen::RPDO3_msg + id)  + (0x00 << 16) + (0x80 << 24);
-                    break;
-                case 3:
-                    data = (canopen::RPDO4_msg + id)  + (0x00 << 16) + (0x80 << 24);
-                    break;
-                default:
-                    std::cout << "BAD OBJECT NUMBER IN disableRPDO! Number is " << object << std::endl;
-                    return;
-            }
-            sendSDO(id, SDOkey(RPDO.index+object,0x01), data, false);
+        int32_t data;
+        switch(object)
+        {
+            case 0:
+                data = (canopen::RPDO1_msg + id)  + (0x00 << 16) + (0x80 << 24);
+                break;
+            case 1:
+                data = (canopen::RPDO2_msg + id)  + (0x00 << 16) + (0x80 << 24);
+                break;
+            case 2:
+                data = (canopen::RPDO3_msg + id)  + (0x00 << 16) + (0x80 << 24);
+                break;
+            case 3:
+                data = (canopen::RPDO4_msg + id)  + (0x00 << 16) + (0x80 << 24);
+                break;
+            default:
+                std::cout << "BAD OBJECT NUMBER IN disableRPDO! Number is " << object << std::endl;
+                return;
+        }
+        sendSDO(id, SDOkey(RPDO.index+object,0x01), data, false);
     }
 
     void clearRPDOMapping(uint8_t id, int object)
     {
-            sendSDO(id, SDOkey(RPDO_map.index+object,0x00), (uint8_t)0x00);
+        sendSDO(id, SDOkey(RPDO_map.index+object,0x00), (uint8_t)0x00);
     }
 
     void makeRPDOMapping(uint8_t id, int object, std::vector<std::string> registers, std::vector<int> sizes , u_int8_t sync_type)

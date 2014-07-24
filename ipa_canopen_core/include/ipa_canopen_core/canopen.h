@@ -180,6 +180,10 @@ namespace canopen{
 
             std::queue <ProfilePosition> position_commands;
             int32_t ticks_per_rev_or_meter;
+            uint64_t inputs;
+            uint64_t outputs;
+            bool is_motor;
+            bool is_io_module;
 
             Device() {};
 
@@ -192,6 +196,8 @@ namespace canopen{
                 initialized_(false),
                 NMTState_("START_UP"),
                 motorState_("START_UP"),
+                is_motor(false),
+                is_io_module(false),
                 nmt_init_(false) {};
 
             Device(uint16_t CANid, std::string name, std::string group, std::string bus):
@@ -206,6 +212,8 @@ namespace canopen{
                 initialized_(false),
                 NMTState_("START_UP"),
                 motorState_("START_UP"),
+                is_motor(false),
+                is_io_module(false),
                 nmt_init_(false) {};
 
             Device(uint16_t CANid, std::string name, std::string group):
@@ -218,6 +226,8 @@ namespace canopen{
                 actualPos_(0),
                 NMTState_("START_UP"),
                 motorState_("START_UP"),
+                is_motor(false),
+                is_io_module(false),
                 initialized_(false),
                 nmt_init_(false) {};
 
@@ -235,6 +245,8 @@ namespace canopen{
                 actualPos_(0),
                 NMTState_("START_UP"),
                 motorState_("START_UP"),
+                is_motor(false),
+                is_io_module(false),
                 initialized_(false),
                 nmt_init_(false) {};
 
@@ -796,13 +808,11 @@ namespace canopen{
     extern bool recover_active;
     extern bool no_position;
 
-    extern bool use_limit_switch;
-
     extern std::string operation_mode_param;
 
     bool openConnection(std::string devName, std::string baudrate);
 
-    bool init(std::string deviceFile, std::string chainName);
+    bool init(std::string deviceFile, std::string chainName, uint8_t max_pdo_channels);
 
     void pdo_map(std::string chain_name, int pdo_id,
              std::vector<std::string> tpdo_registers, std::vector<int> tpdo_sizes, u_int8_t tsync_type,
@@ -1029,6 +1039,7 @@ namespace canopen{
     void RPDO4_outgoing(uint16_t CANid, int16_t target_torque);
     void TPDO1_incoming(uint16_t CANid, const TPCANRdMsg m);
     void TPDO2_incoming(uint16_t CANid, const TPCANRdMsg m);
+    void TPDO1_incoming_io(uint16_t CANid, const TPCANRdMsg m);
     void defaultEMCY_incoming(uint16_t CANid, const TPCANRdMsg m);
 
     /***************************************************************/
