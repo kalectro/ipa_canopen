@@ -729,9 +729,12 @@ namespace canopen{
     };
 
     struct SDOanswer{
+        uint8_t can_id;
         uint16_t index;
         uint8_t subindex;
         int32_t value;
+        bool aborted;
+        bool confirmed;
     };
 
     /***************************************************************/
@@ -759,12 +762,12 @@ namespace canopen{
     extern HANDLE h;
     extern std::vector<std::string> openDeviceFiles;
     extern bool atFirstInit;
-    extern int initTrials;
     extern std::map<SDOkey, std::function<void (uint8_t CANid, BYTE data[8])> > incomingDataHandlers;
     extern std::map<uint16_t, std::function<void (const TPCANRdMsg m)> > incomingPDOHandlers;
     extern std::map<uint16_t, std::function<void (const TPCANRdMsg m)> > incomingEMCYHandlers;
 
     SDOanswer requested_sdo;
+    SDOanswer response_sdo;
     /***************************************************************/
     //			define state machine functions
     /***************************************************************/
@@ -907,7 +910,6 @@ namespace canopen{
 
     const SDOkey STATUSWORD(0x6041, 0x0);
     const SDOkey ERRORWORD(0x1001, 0x0);
-    const SDOkey DRIVERTEMPERATURE(0x22A2, 0x0);
     const SDOkey MANUFACTURER(0x1002, 0x0);
     const SDOkey MANUFACTURERDEVICENAME(0x1008, 0x0);
     const SDOkey MANUFACTURERHWVERSION(0x1009, 0x0);
@@ -1003,6 +1005,42 @@ namespace canopen{
     const u_int16_t COB_NODEGUARD = 0x700;
     const u_int16_t COB_MAX = 0x800;
 
+    std::map<uint32_t, std::string> sdo_abort_messages =
+    {
+        {0x06040042, "The number and length of the objects to be mapped would exceed PDO length."},
+        {0x05030000, "Toggle bit not alternated."},
+        {0x05040000, "SDO protocol timed out."},
+        {0x05040001, "Client/server command specifier not valid or unknown."},
+        {0x05040002, "Invalid block size (block mode only)."},
+        {0x05040003, "Invalid sequence number (block mode only)."},
+        {0x05040004, "CRC error (block mode only)."},
+        {0x05040005,"Out of memory."},
+        {0x06010000,"Unsupported access to an object."},
+        {0x06010001,"Attempt to read a write only object."},
+        {0x06010002,"Attempt to write a read only object."},
+        {0x06020000,"Object does not exist in the object dictionary."},
+        {0x06040041,"Object cannot be mapped to the PDO."},
+        {0x06040042,"The number and length of the objects to be mapped would exceed PDO length."},
+        {0x06040043,"General parameter incompatibility reason."},
+        {0x06040047,"General internal incompatibility in the device."},
+        {0x06060000,"Access failed due to an hardware error."},
+        {0x06070010,"Data type does not match, length of service parameter does not match"},
+        {0x06070012,"Data type does not match, length of service parameter too high"},
+        {0x06070013,"Data type does not match, length of service parameter too low"},
+        {0x06090011,"Sub-index does not exist."},
+        {0x06090030,"Invalid value for parameter (download only). "},
+        {0x06090031,"Value of parameter written too high (download only)."},
+        {0x06090032,"Value of parameter written too low (download only)."},
+        {0x06090036,"Maximum value is less than minimum value."},
+        {0x060A0023,"Resource not available: SDO connection"},
+        {0x08000000,"General error"},
+        {0x08000020,"Data cannot be transferred or stored to the application."},
+        {0x08000021,"Data cannot be transferred or stored to the application because of local control."},
+        {0x08000022,"Data cannot be transferred or stored to the application because of the present device state."},
+        {0x08000023,"Object dictionary dynamic generation fails or no object dictionary is present (e.g. object dictionary is generated from file and generation fails because of an file error)."},
+        {0x08000024,"No data available￼"}
+    };
+
     static const char * const modesDisplay[] =
     {"NO_MODE", "PROFILE_POSITION_MODE", "VELOCITY", "PROFILE_VELOCITY_MODE",
                               "TORQUE_PROFILED_MODE", "RESERVED", "HOMING_MODE", "INTERPOLATED_POSITION_MODE",
@@ -1037,8 +1075,8 @@ namespace canopen{
 
     void RPDO2_outgoing(uint16_t CANid, int32_t target_position, uint32_t max_velocity);
     void RPDO4_outgoing(uint16_t CANid, int16_t target_torque);
-    void TPDO1_incoming(uint16_t CANid, const TPCANRdMsg m);
-    void TPDO2_incoming(uint16_t CANid, const TPCANRdMsg m);
+    void TPDO1_incoming_motors(uint16_t CANid, const TPCANRdMsg m);
+    void TPDO2_incoming_motors(uint16_t CANid, const TPCANRdMsg m);
     void TPDO1_incoming_io(uint16_t CANid, const TPCANRdMsg m);
     void defaultEMCY_incoming(uint16_t CANid, const TPCANRdMsg m);
 

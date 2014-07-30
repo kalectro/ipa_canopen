@@ -63,7 +63,6 @@
 #include <unordered_map>
 #include <algorithm>
 
-
 namespace canopen
 {
     /***************************************************************/
@@ -80,8 +79,6 @@ namespace canopen
     std::vector<std::thread> managerThreads;
     std::vector<std::string> openDeviceFiles;
     bool atFirstInit=true;
-    int initTrials=0;
-    std::map<SDOkey, std::function<void (uint8_t CANid, BYTE data[8])> > incomingDataHandlers {{ DRIVERTEMPERATURE, sdo_incoming }};
     std::map<SDOkey, std::function<void (uint8_t CANid, BYTE data[8])> > incomingErrorHandlers { { ERRORWORD, errorword_incoming }, { MANUFACTURER, errorword_incoming } };
     std::map<SDOkey, std::function<void (uint8_t CANid, BYTE data[8])> > incomingManufacturerDetails { {MANUFACTURERHWVERSION, manufacturer_incoming}, {MANUFACTURERDEVICENAME, manufacturer_incoming}, {MANUFACTURERSOFTWAREVERSION, manufacturer_incoming} };
     std::map<uint16_t, std::function<void (const TPCANRdMsg m)> > incomingPDOHandlers;
@@ -113,19 +110,18 @@ namespace canopen
                  std::vector<std::string> tpdo_registers, std::vector<int> tpdo_sizes, u_int8_t tsync_type,
                  std::vector<std::string> rpdo_registers, std::vector<int> rpdo_sizes, u_int8_t rsync_type)
     {
-        // clear all mappings for given pdo id
-        canopen::disableTPDO(id, pdo_id-1);
-        canopen::clearTPDOMapping(id, pdo_id-1);
-        canopen::disableRPDO(id, pdo_id-1);
-        canopen::clearRPDOMapping(id, pdo_id-1);
-
         if(!tpdo_registers.empty())
         {
+            // clear all mappings for given pdo id
+            canopen::disableTPDO(id, pdo_id-1);
+            canopen::clearTPDOMapping(id, pdo_id-1);
             canopen::makeTPDOMapping(id, pdo_id-1, tpdo_registers, tpdo_sizes, tsync_type);
             canopen::enableTPDO(id, pdo_id-1);
         }
         if(!rpdo_registers.empty())
         {
+            canopen::disableRPDO(id, pdo_id-1);
+            canopen::clearRPDOMapping(id, pdo_id-1);
             canopen::makeRPDOMapping(id,pdo_id-1, rpdo_registers, rpdo_sizes, rsync_type);
             canopen::enableRPDO(id, pdo_id-1);
         }
@@ -133,28 +129,15 @@ namespace canopen
 
     bool init(std::string deviceFile, std::string chainName, uint8_t max_pdo_channels)
     {
-        initTrials++;
-
-        if(initTrials == 4)
-        {
-            std::cout << "There are still problems with the devices. Trying a complete reset " << std::endl;
-            canopen::sendNMT(0x00, canopen::NMT_RESET_NODE);
-
-            initTrials=0;
-        }
-
         if(canopen::atFirstInit)
         {
-
             canopen::atFirstInit = false;
 
             bool connection_success;
 
             bool connection_is_available = std::find(canopen::openDeviceFiles.begin(), canopen::openDeviceFiles.end(), deviceFile) != canopen::openDeviceFiles.end();
-
             if(!connection_is_available)
             {
-
                 CAN_Close(canopen::h);
                 connection_success = canopen::openConnection(deviceFile, canopen::baudRate);
 
@@ -167,11 +150,10 @@ namespace canopen
                 canopen::openDeviceFiles.push_back(deviceFile);
             }
 
-            std::cout << "Resetting communication with the devices " << std::endl;
+            // std::cout << "Resetting communication with the devices " << std::endl;
             canopen::sendNMT(0x00, canopen::NMT_RESET_COMMUNICATION);
 
         }
-
 
         if(canopen::deviceGroups[chainName].getFirstInit())
         {
@@ -181,9 +163,9 @@ namespace canopen
             std::chrono::duration<double> elapsed_seconds;
 
             canopen::initDeviceManagerThread(chainName,canopen::deviceManager);
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
-            std::cout << "Initializing " << chainName << std::endl;
+            // std::cout << "Initializing " << chainName << std::endl;
 
             canopen::deviceGroups[chainName].setFirstInit(false);
 
@@ -204,7 +186,7 @@ namespace canopen
             for(auto id : canopen::deviceGroups[chainName].getCANids())
             {
                 bool nmt_init = devices[id].getNMTInit();
-                std::cout << "Waiting for Node: " << (uint16_t)id << " to become available" << std::endl;
+                // std::cout << "Waiting for Node: " << (uint16_t)id << " to become available" << std::endl;
 
                 while(!nmt_init)
                 {
@@ -221,7 +203,7 @@ namespace canopen
                     nmt_init = devices[id].getNMTInit();
                 }
 
-                std::cout << "Node: " << (uint16_t)id << " is now available" << std::endl;
+                // std::cout << "Node: " << (uint16_t)id << " is now available" << std::endl;
 
                 // Configure PDO channels
                 for (int pdo_channel = 1; pdo_channel <= max_pdo_channels; ++pdo_channel)
@@ -325,7 +307,7 @@ namespace canopen
                     pdo_map(id, pdo_channel, tpdo_registers, tpdo_sizes, tsync_type, rpdo_registers, rpdo_sizes, rsync_type);
                 }
                 canopen::sendNMT((u_int8_t)id, canopen::NMT_START_REMOTE_NODE);
-                std::cout << "Initialized the PDO mapping for Node:" << (uint16_t)id << std::endl;
+                std::cout << std::hex << "Initialized the PDO mapping for Node: " << (int)id << std::endl;
             }
         }
         recover_active = false;
@@ -335,7 +317,6 @@ namespace canopen
             getErrors(id);
             readManErrReg(id);
             canopen::devices[id].setInitialized(true);
-            initTrials = 0;
         }
         return true;
     }
@@ -349,7 +330,7 @@ namespace canopen
 
             if(devices[id].getIPMode())
             {
-                std::cout << "Node" << id << "is already operational" << std::endl;
+                std::cout << std::hex << "Node" << id << "is already operational" << std::endl;
             }
             else
             {
@@ -363,7 +344,6 @@ namespace canopen
 
                 uploadSDO(id, STATUSWORD);
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
-                uploadSDO(id, DRIVERTEMPERATURE);
                 uploadSDO(id, MODES_OF_OPERATION_DISPLAY);
 
                 getErrors(id);
@@ -609,9 +589,13 @@ namespace canopen
         msg.DATA[7] = (value >> 24) & 0xFF;
 
         int32_t trial_counter = 0;
-        requested_sdo.index = 0; // make sure no old values are used
+        response_sdo.can_id = 0;
+        response_sdo.index = 0; // make sure no old values are used
+        response_sdo.subindex = 0;
+        response_sdo.value = 0;
+
         time_start = std::chrono::high_resolution_clock::now();
-        while(requested_sdo.index != sdo.index || requested_sdo.subindex != sdo.subindex || requested_sdo.value != value)
+        while(response_sdo.can_id != CANid || response_sdo.index != sdo.index || response_sdo.subindex != sdo.subindex || response_sdo.value != value)
         {
             // Send new value
             CAN_Write(h, &msg);
@@ -621,19 +605,25 @@ namespace canopen
 
             // Check if value was written
             uploadSDO(CANid,sdo);
+
+            //if(response_sdo.index == sdo.index && response_sdo.subindex == sdo.subindex && response_sdo.aborted == true)
+            //{
+            //    std::cout << std::hex << "SDO request aborted by CANid " << (int)CANid << " for SDO " << sdo.index << "s" << (int)sdo.subindex <<" with value " << (int)value << std::endl;
+            //    return false;
+            //}
             time_end = std::chrono::high_resolution_clock::now();
             elapsed_seconds = time_end - time_start;
-            if(elapsed_seconds.count() > timeout / trials)
+            if(elapsed_seconds.count() > timeout / (double)trials)
             {
                 if(trial_counter++ >= trials)
                 {
-                    std::cout << std::hex << "Write error at CANid " << (int)CANid << " to SDO " << sdo.index << "s" << (int)sdo.subindex <<" with value " << (int)value << "  read value " << requested_sdo.value << std::endl;
+                    std::cout << std::hex << "Write error at CANid " << (int)CANid << " to SDO " << sdo.index << "s" << (int)sdo.subindex <<" with value " << (int)value << ", read value " << response_sdo.value << std::endl;
                     return false;
                 }
                 // Restart timer
                 time_start = std::chrono::high_resolution_clock::now();
             }
-            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
         return true;
     }
@@ -664,7 +654,6 @@ namespace canopen
                     if(elapsed_seconds.count() > 2)
                     {
                         time_start = std::chrono::high_resolution_clock::now();
-                        canopen::uploadSDO(id, DRIVERTEMPERATURE);
                         getErrors(id);
                         readManErrReg(id);
                     }
@@ -714,17 +703,10 @@ namespace canopen
 
     void defaultEMCY_incoming(uint16_t CANid, const TPCANRdMsg m)
     {
-
-
-        uint16_t mydata_low = m.Msg.DATA[0];
-        uint16_t mydata_high = m.Msg.DATA[1];
-
-        //std::cout << "EMCY" << (uint16_t)CANid << " is: " << (uint16_t)m.Msg.DATA[0] << " "<< (uint16_t)m.Msg.DATA[1]<< " " << (uint16_t)m.Msg.DATA[2]<< " "<< (uint16_t)m.Msg.DATA[3]<< " "<< (uint16_t)m.Msg.DATA[4]<< " "<< (uint16_t)m.Msg.DATA[5]<< " "<< (uint16_t)m.Msg.DATA[6]<< " "<< (uint16_t)m.Msg.DATA[7]<< " "<< (uint16_t)m.Msg.DATA[8]<< std::endl;
-
-
+        std::cout << "EMCY incoming from " << CANid << std::endl;
     }
 
-    void TPDO1_incoming(uint16_t CANid, const TPCANRdMsg m)
+    void TPDO1_incoming_motors(uint16_t CANid, const TPCANRdMsg m)
     {
 
         uint16_t mydata_low = m.Msg.DATA[0];
@@ -837,7 +819,7 @@ namespace canopen
         //std::cout << std::hex << (uint16_t)m.Msg.ID << "  " << (uint16_t)m.Msg.DATA[0] << " " << (uint16_t)m.Msg.DATA[1] << " " << (uint16_t)m.Msg.DATA[2] << " " << (uint16_t)m.Msg.DATA[3] << " " << (uint16_t)m.Msg.DATA[4] << " " << (uint16_t)m.Msg.DATA[5] << " " << (uint16_t)m.Msg.DATA[6] << " " << (uint16_t)m.Msg.DATA[7] << std::endl;
     }
 
-    void TPDO2_incoming(uint16_t CANid, const TPCANRdMsg m)
+    void TPDO2_incoming_motors(uint16_t CANid, const TPCANRdMsg m)
     {
         double newPos = mdeg2rad(m.Msg.DATA[0] + (m.Msg.DATA[1] << 8) + (m.Msg.DATA[2] << 16) + (m.Msg.DATA[3] << 24));
 
@@ -855,7 +837,6 @@ namespace canopen
             devices[CANid].inputs += ((uint64_t)m.Msg.DATA[i]) << (8*i);
         }
     }
-
 
     void initListenerThread(std::function<void ()> const& listener)
     {
@@ -925,22 +906,22 @@ namespace canopen
                 }
             }
 
-            // incoming NMT error control
+            // incoming NMT heartbeat
             else if (m.Msg.ID >= COB_NODEGUARD && m.Msg.ID < COB_MAX)
             {
-                //std::cout << std::hex << "NMT received:  " << (uint16_t)m.Msg.ID << "  " << (uint16_t)m.Msg.DATA[0] << " " << (uint16_t)m.Msg.DATA[1] << std::endl;
-                uint16_t CANid = (uint16_t)(m.Msg.ID - COB_NODEGUARD);
+                std::cout << std::hex << "NMT received:  " << (uint16_t)m.Msg.ID << "  " << (uint16_t)m.Msg.DATA[0] << " " << (uint16_t)m.Msg.DATA[1] << std::endl;
+                uint8_t CANid = m.Msg.ID - COB_NODEGUARD;
 
-                std::cout << "Bootup received. Node-ID =  " << CANid << std::endl;
+                // std::cout << "Bootup received. Node-ID =  " << CANid << std::endl;
                 std::map<uint8_t,Device>::const_iterator search = devices.find(CANid);
                 if(search != devices.end())
                 {
-                    std::cout << "Found " << (u_int16_t)search->first << "\n";
+                    // std::cout << "Found " << (u_int16_t)search->first << "\n";
                     devices[CANid].setNMTInit(true);
                 }
                 else
                 {
-                    std::cout << "Node:" << CANid << " could not be found on the required devices list... ignoring" << std::endl;
+                    std::cout << "Received bootup from node " << (int)CANid << " which I do not know what to do with...ignoring" << std::endl;
                 }
 
             }
@@ -1230,9 +1211,54 @@ namespace canopen
 
     void sdo_incoming(uint8_t CANid, BYTE data[8])
     {
-        uint16_t SDOid = data[1]+(data[2]<<8);
+        // data[0] -> command byte
+        uint16_t sdo_id = data[1]+(data[2]<<8);
+        uint8_t sdo_id_sub = data[3];
+        response_sdo.can_id = CANid;
+        response_sdo.index = sdo_id;
+        response_sdo.subindex = sdo_id_sub;
+        response_sdo.aborted = false;
+        response_sdo.confirmed = false;
 
-        if(SDOid == STATUSWORD.index) //The incoming message is a result from a statusWord Request
+        // read out data
+        if(data[0] & 0x03)  // expedited transfer
+        {
+            // check bit 2 and 3 for unused bytes
+            switch((data[0] & 0x0C) >> 2)
+            {
+                case 0:
+                    response_sdo.value = data[4] + (data[5] << 8) + (data[6] << 16) + (data[7] << 24);
+                    break;
+                case 1:
+                    response_sdo.value = data[4] + (data[5] << 8) + (data[6] << 16);
+                    break;
+                case 2:
+                    response_sdo.value = data[4] + (data[5] << 8);
+                    break;
+                case 3:
+                    response_sdo.value = data[4];
+                    break;
+            }
+        }
+        else if(data[0] == 0x60)
+        {
+            response_sdo.confirmed = true;
+            //std::cout << std::hex << "Write SDO confirmed from " << (int)CANid << " with id " << sdo_id << "s" << (int)sdo_id_sub << std::endl;
+        }
+        else if(data[0] == 0x80)
+        {
+            response_sdo.aborted = true;
+            uint32_t abort_code = data[4] + (data[5] << 8) + (data[6] << 16) + (data[7] << 24);
+            std::string error_message = sdo_abort_messages[abort_code];
+            std::cout << std::hex << "SDO abort from CAN id " << (int)CANid << " for SDO 0x" << sdo_id << "s" << (int)sdo_id_sub << " with the following error message:" << std::endl;
+            std::cout << " " << error_message << std::endl;
+        }
+        else
+        {
+            std::cout << std::hex << "Received SDO from 0x" << (int)CANid << " with id 0x" << sdo_id << "s" << (int)sdo_id_sub << " and command byte 0x" << (int)data[0] << "  DATA: " << (int)data[4] << " " << (int)data[5] << " " << (int)data[6] << " " << (int)data[7] << std::endl;
+        }
+
+        if(sdo_id == STATUSWORD.index) //The incoming message is a result from a statusWord Request
         {
             uint16_t mydata_low = data[4];
             uint16_t mydata_high = data[5];
@@ -1318,38 +1344,17 @@ namespace canopen
 
             //std::cout << "Motor State of Device with CANid " << (uint16_t)CANid << " is: " << devices[CANid].getMotorState() << std::endl;
         }
-        else if(SDOid == DRIVERTEMPERATURE.index) //This is a result from a temperature register request
-        {
-            devices[CANid].setDriverTemperature(data[4]);
-        }
-        else if(SDOid == MODES_OF_OPERATION_DISPLAY.index) //Incoming message is a mode of operation display
+        else if(sdo_id == MODES_OF_OPERATION_DISPLAY.index) //Incoming message is a mode of operation display
         {
             devices[CANid].setCurrentModeofOperation(data[4]);
         }
 
-        // expedited transfer
-        if(data[0] & 0x03)
+        // check if SDO was requested
+        if(sdo_id == requested_sdo.index && sdo_id_sub == requested_sdo.subindex && CANid == requested_sdo.can_id)
         {
-            requested_sdo.index = SDOid;
-            requested_sdo.subindex = data[3];
-
-            // check bit 2 and 3 for unused bytes
-            switch((data[0] & 0x0C) >> 2)
-            {
-                case 0:
-                    requested_sdo.value = data[4] + (data[5] << 8) + (data[6] << 16) + (data[7] << 24);
-                    break;
-                case 1:
-                    requested_sdo.value = data[4] + (data[5] << 8) + (data[6] << 16);
-                    break;
-                case 2:
-                    requested_sdo.value = data[4] + (data[5] << 8);
-                    break;
-                case 3:
-                    requested_sdo.value = data[4];
-                    break;
-            }
-            // std::cout << std::hex << "Received SDO with id " << SDOid << "s" << (int)requested_sdo.subindex << " and data[0]=" << (int)data[0] << "  DATA: " << requested_sdo.value << "  " << (int)data[4] << " " << (int)data[5] << " " << (int)data[6] << " " << (int)data[7] << std::endl;
+            //std::cout << "requested sdo received " << response_sdo.value << std::endl;
+            requested_sdo.confirmed = true;
+            requested_sdo.value = response_sdo.value;
         }
     }
 
@@ -1385,7 +1390,7 @@ namespace canopen
                 std::cout << "BAD OBJECT NUMBER IN disableRPDO! Number is " << object << std::endl;
                 return;
         }
-        sendSDO(id, SDOkey(RPDO.index+object,0x01), data, false);
+        sendSDO(id, SDOkey(RPDO.index+object,0x01), data);
     }
 
     void clearRPDOMapping(uint8_t id, int object)
@@ -1444,22 +1449,22 @@ namespace canopen
         switch(object)
         {
             case 0:
-                data = (canopen::TPDO1_msg + id)  + (0x00 << 16) + (0x80 << 24);
+                data = (canopen::TPDO1_msg + id)  + (1 << 31);
                 break;
             case 1:
-                data = (canopen::TPDO2_msg + id)  + (0x00 << 16) + (0x80 << 24);
+                data = (canopen::TPDO2_msg + id)  + (1 << 31);
                 break;
             case 2:
-                data = (canopen::TPDO3_msg + id)  + (0x00 << 16) + (0x80 << 24);
+                data = (canopen::TPDO3_msg + id)  + (1 << 31);
                 break;
             case 3:
-                data = (canopen::TPDO4_msg + id)  + (0x00 << 16) + (0x80 << 24);
+                data = (canopen::TPDO4_msg + id)  + (1 << 31);
                 break;
             default:
                 std::cout << "Incorrect object for mapping" << std::endl;
                 return;
         }
-        sendSDO(id, SDOkey(TPDO.index+object,0x01), data, false);
+        sendSDO(id, SDOkey(TPDO.index+object,0x01), data);
     }
 
     void clearTPDOMapping(uint8_t id, int object)
@@ -1469,8 +1474,8 @@ namespace canopen
 
     void makeTPDOMapping(uint8_t id, int object, std::vector<std::string> registers, std::vector<int> sizes, u_int8_t sync_type)
     {
-        int ext_counter=0;
-        for(int counter=0; counter < registers.size();counter++)
+        int counter;
+        for(counter = 0; counter < registers.size();counter++)
         {
             int index_data;
 
@@ -1480,12 +1485,11 @@ namespace canopen
 
             int32_t data = (sizes[counter]) + (index_data << 8);
             sendSDO(id, SDOkey(TPDO_map.index + object, counter + 1), data);
-
-            ext_counter++;
         }
 
         sendSDO(id, SDOkey(TPDO.index+object,0x02), u_int8_t(sync_type));
-        sendSDO(id, SDOkey(TPDO_map.index+object,0x00), u_int8_t(ext_counter));
+        std::cout << std::hex << "Mapping " << counter << " objects to CANid " << (int)id << " for object " << object + 1 << std::endl;
+        sendSDO(id, SDOkey(TPDO_map.index+object,0x00), uint8_t(counter));
     }
 
     void enableTPDO(uint8_t id, int object)
