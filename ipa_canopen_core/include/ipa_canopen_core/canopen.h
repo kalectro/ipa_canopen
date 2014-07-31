@@ -80,8 +80,6 @@
 #include <queue>
 
 namespace canopen{
-
-    extern std::chrono::milliseconds syncInterval;
     extern std::string baudRate;
 
     /***************************************************************/
@@ -615,10 +613,6 @@ namespace canopen{
                 initialized_ = initialized;
             }
 
-            void updateDesiredPos(){
-                desiredPos_ += desiredVel_ * (syncInterval.count() / 1000.0);
-            }
-
             void setTimeStamp_msec(std::chrono::milliseconds timeStamp){
                 timeStamp_msec_ = timeStamp;
             }
@@ -1004,6 +998,14 @@ namespace canopen{
     const u_int16_t COB_SDO_RX = 0x600;
     const u_int16_t COB_NODEGUARD = 0x700;
     const u_int16_t COB_MAX = 0x800;
+
+    std::map<uint8_t, std::string> nmt_state =
+    {
+        {0x00, "Bootup"},
+        {0x04, "Stopped"},
+        {0x05, "Operational"},
+        {0x7F, "Pre-Operational"}
+    };
 
     std::map<uint32_t, std::string> sdo_abort_messages =
     {

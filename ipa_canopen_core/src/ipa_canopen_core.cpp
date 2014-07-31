@@ -71,7 +71,6 @@ namespace canopen
     bool sdo_protect=false;
     BYTE protect_msg[8];
 
-    std::chrono::milliseconds syncInterval;
     std::string baudRate;
     std::map<uint8_t, Device> devices;
     std::map<std::string, DeviceGroup> deviceGroups;
@@ -244,7 +243,6 @@ namespace canopen
                                 rpdo_registers.push_back("607A00");
                                 rpdo_sizes.push_back(0x20);
                                 rsync_type = SYNC_TYPE_ASYNCHRONOUS;
-                                break;
 
                                 // Max Velocity
                                 rpdo_registers.push_back("608100");
@@ -306,7 +304,9 @@ namespace canopen
                     }
                     pdo_map(id, pdo_channel, tpdo_registers, tpdo_sizes, tsync_type, rpdo_registers, rpdo_sizes, rsync_type);
                 }
-                canopen::sendNMT((u_int8_t)id, canopen::NMT_START_REMOTE_NODE);
+
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                canopen::sendNMT((uint8_t)id, canopen::NMT_START_REMOTE_NODE);
                 std::cout << std::hex << "Initialized the PDO mapping for Node: " << (int)id << std::endl;
             }
         }
@@ -639,14 +639,14 @@ namespace canopen
     void deviceManager(std::string chainName)
     {
         std::chrono::time_point<std::chrono::high_resolution_clock> time_start, time_end;
-
+        std::chrono::duration<double> elapsed_seconds;
+        time_start = std::chrono::high_resolution_clock::now();
 
         while (true)
         {
             time_end = std::chrono::high_resolution_clock::now();
-            std::chrono::duration<double> elapsed_seconds = time_end-time_start;
+            elapsed_seconds = time_end-time_start;
 
-            auto tic = std::chrono::high_resolution_clock::now();
             if (!recover_active)
             {
                 for (auto id : canopen::deviceGroups[chainName].getCANids())
@@ -659,7 +659,7 @@ namespace canopen
                     }
                 }
                 canopen::sendSync();
-                std::this_thread::sleep_for(syncInterval - (std::chrono::high_resolution_clock::now() - tic ));
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
             }
 
         }
@@ -909,10 +909,10 @@ namespace canopen
             // incoming NMT heartbeat
             else if (m.Msg.ID >= COB_NODEGUARD && m.Msg.ID < COB_MAX)
             {
-                std::cout << std::hex << "NMT received:  " << (uint16_t)m.Msg.ID << "  " << (uint16_t)m.Msg.DATA[0] << " " << (uint16_t)m.Msg.DATA[1] << std::endl;
+                // std::cout << std::hex << "NMT received:  " << (uint16_t)m.Msg.ID << "  " << (uint16_t)m.Msg.DATA[0] << " " << (uint16_t)m.Msg.DATA[1] << std::endl;
                 uint8_t CANid = m.Msg.ID - COB_NODEGUARD;
 
-                // std::cout << "Bootup received. Node-ID =  " << CANid << std::endl;
+                std::cout << std::hex << "Received NMT message from CANid " << (int)CANid << ". Current state: " << nmt_state[m.Msg.DATA[0]] << std::endl;
                 std::map<uint8_t,Device>::const_iterator search = devices.find(CANid);
                 if(search != devices.end())
                 {
