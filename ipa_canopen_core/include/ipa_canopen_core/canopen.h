@@ -177,7 +177,7 @@ namespace canopen{
         public:
 
             std::queue <ProfilePosition> position_commands;
-            int32_t ticks_per_rev_or_meter;
+            int32_t ticks_per_rad_or_meter;
             uint64_t inputs;
             uint64_t outputs;
             bool is_motor;
@@ -768,7 +768,7 @@ namespace canopen{
 
     void setNMTState(uint16_t CANid, std::string targetState);
     bool setMotorState(uint16_t CANid, std::string targetState, double timeout = 5.0);
-    bool setOperationMode(uint16_t CANid, const int8_t targetMode, double timeout = 5.0);
+    bool setOperationMode(uint8_t CANid, int8_t targetMode, double timeout = 5.0);
 
     /***************************************************************/
     //	define get errors functions
@@ -795,14 +795,13 @@ namespace canopen{
 
 
     /***************************************************************/
-    //	define init and recover variables and functions
+    //	define init variables and functions
     /***************************************************************/
 
     extern bool sdo_protect;
     extern BYTE protect_msg[];
 
     extern bool atFirstInit;
-    extern bool recover_active;
     extern bool no_position;
 
     extern std::string operation_mode_param;
@@ -814,8 +813,6 @@ namespace canopen{
     void pdo_map(std::string chain_name, int pdo_id,
              std::vector<std::string> tpdo_registers, std::vector<int> tpdo_sizes, u_int8_t tsync_type,
              std::vector<std::string> rpdo_registers, std::vector<int> rpdo_sizes, u_int8_t rsync_type);
-
-    bool recover(std::string chainName, const int8_t mode_of_operation);
 
     extern std::function< void (uint16_t CANid) > geterrors;
 
@@ -967,8 +964,6 @@ namespace canopen{
     const uint16_t CONTROLWORD_SWITCH_ON = 7;
     const uint16_t CONTROLWORD_ENABLE_OPERATION = 15;
     const uint16_t CONTROLWORD_ENABLE_MOVEMENT = 31;
-    const uint16_t CONTROLWORD_START_HOMING = 16;
-    const uint16_t CONTROLWORD_ENABLE_IP_MODE = 16;
     const uint16_t CONTROLWORD_DISABLE_INTERPOLATED = 7;
     const uint16_t CONTROLWORD_DISABLE_OPERATION = 7;
     const uint16_t CONTROL_WORD_DISABLE_VOLTAGE = 0x7D;

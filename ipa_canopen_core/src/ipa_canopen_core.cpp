@@ -82,7 +82,6 @@ namespace canopen
     std::map<SDOkey, std::function<void (uint8_t CANid, BYTE data[8])> > incomingManufacturerDetails { {MANUFACTURERHWVERSION, manufacturer_incoming}, {MANUFACTURERDEVICENAME, manufacturer_incoming}, {MANUFACTURERSOFTWAREVERSION, manufacturer_incoming} };
     std::map<uint16_t, std::function<void (const TPCANRdMsg m)> > incomingPDOHandlers;
     std::map<uint16_t, std::function<void (const TPCANRdMsg m)> > incomingEMCYHandlers;
-    bool recover_active;
 
     std::string operation_mode_param;
 
@@ -91,7 +90,7 @@ namespace canopen
     std::chrono::duration<double> elapsed_seconds;
 
     /***************************************************************/
-    //		define init and recover sequence
+    //		define init sequence
     /***************************************************************/
 
     bool openConnection(std::string devName, std::string baudrate)
@@ -103,6 +102,31 @@ namespace canopen
         errno = CAN_Init(h, baudrates[baudrate], CAN_INIT_TYPE_ST);
 
         return true;
+    }
+
+    DWORD CAN_Write_debug(HANDLE h, TPCANMsg *msg)
+    {
+        DWORD status = CAN_Status(h);
+        if(status != 32)
+            std::cout << "Status is " << status << std::endl;
+        int nreads, nwrites;
+        int counter = 0;
+        while(status & 0x80)
+        {
+            status = LINUX_CAN_Extended_Status(h, &nreads, &nwrites);
+            std::cout << "ugly status... waiting... for " << nreads << " reads and " << nwrites << " writes" << std::endl;
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            if(counter++ >3)
+            {
+                canopen::atFirstInit = true;
+                deviceGroups["motors"].setFirstInit(false);
+                //throw std::exception();
+            }
+        }
+        DWORD return_me = LINUX_CAN_Write_Timeout(h, msg, 10000);
+        if(return_me != 0)
+            std::cout << "Write " << return_me << std::endl;
+        return return_me;
     }
 
     void pdo_map(uint8_t id, int pdo_id,
@@ -128,6 +152,7 @@ namespace canopen
 
     bool init(std::string deviceFile, std::string chainName, uint8_t max_pdo_channels)
     {
+        std::cout << "starting initialization" << std::endl;
         if(canopen::atFirstInit)
         {
             canopen::atFirstInit = false;
@@ -156,7 +181,6 @@ namespace canopen
 
         if(canopen::deviceGroups[chainName].getFirstInit())
         {
-
             std::chrono::time_point<std::chrono::high_resolution_clock> time_start, time_end;
             time_start = std::chrono::high_resolution_clock::now();
             std::chrono::duration<double> elapsed_seconds;
@@ -164,7 +188,7 @@ namespace canopen
             canopen::initDeviceManagerThread(chainName,canopen::deviceManager);
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
-            // std::cout << "Initializing " << chainName << std::endl;
+            std::cout << "Initializing " << chainName << std::endl;
 
             canopen::deviceGroups[chainName].setFirstInit(false);
 
@@ -310,7 +334,6 @@ namespace canopen
                 std::cout << std::hex << "Initialized the PDO mapping for Node: " << (int)id << std::endl;
             }
         }
-        recover_active = false;
 
         for (auto id : canopen::deviceGroups[chainName].getCANids())
         {
@@ -321,53 +344,6 @@ namespace canopen
         return true;
     }
 
-    bool recover(std::string chainName, const int8_t mode_of_operation)
-    {
-        recover_active = true;
-
-        for (auto id : canopen::deviceGroups[chainName].getCANids())
-        {
-
-            if(devices[id].getIPMode())
-            {
-                std::cout << std::hex << "Node" << id << "is already operational" << std::endl;
-            }
-            else
-            {
-
-                controlPDO(id,CONTROLWORD_HALT);
-                controlPDO(id,CONTROLWORD_QUICKSTOP);
-                sendSDO(id, MODES_OF_OPERATION, mode_of_operation);
-
-                setMotorState(id, MS_SWITCHED_ON_DISABLED);
-                setMotorState(id, MS_OPERATION_ENABLED);
-
-                uploadSDO(id, STATUSWORD);
-                std::this_thread::sleep_for(std::chrono::milliseconds(10));
-                uploadSDO(id, MODES_OF_OPERATION_DISPLAY);
-
-                getErrors(id);
-            }
-        }
-        recover_active = false;
-
-        for (auto id : canopen::deviceGroups[chainName].getCANids())
-        {
-
-            if(devices[id].getIPMode())
-            {
-                std::cout << "Concluded driver side recover successfully" << std::endl;
-            }
-            else
-            {
-                std::cout << "Problems occured during driver side recover" << std::endl;
-                return false;
-            }
-        }
-
-        return true;
-
-    }
 
     /***************************************************************/
     //		define state machine functions
@@ -378,7 +354,7 @@ namespace canopen
 
     }
 
-    bool setOperationMode(uint16_t CANid, const int8_t targetMode, double timeout)
+    bool setOperationMode(uint8_t CANid, int8_t targetMode, double timeout)
     {
         std::chrono::time_point<std::chrono::high_resolution_clock> time_start, time_end;
 
@@ -393,8 +369,8 @@ namespace canopen
             setMotorState(CANid, canopen::MS_SWITCHED_ON);
         }
 
-        std::cout << "setting mode to " << int(targetMode) << std::endl;
-        sendSDO(CANid, MODES_OF_OPERATION, (int8_t)targetMode);
+        std::cout << std::dec << "setting mode to " << (int)targetMode << std::endl;
+        sendSDO(CANid, MODES_OF_OPERATION, targetMode);
         // check operation mode until correct mode is returned
         while (devices[CANid].getCurrentModeofOperation() != targetMode)
         {
@@ -506,7 +482,7 @@ namespace canopen
         msg.DATA[5] = 0x00;
         msg.DATA[6] = 0x00;
         msg.DATA[7] = 0x00;
-        CAN_Write(h, &msg);
+        CAN_Write_debug(h, &msg);
     }
 
     void requestDataBlock2(uint8_t CANid)
@@ -524,7 +500,7 @@ namespace canopen
         msg.DATA[5] = 0x00;
         msg.DATA[6] = 0x00;
         msg.DATA[7] = 0x00;
-        CAN_Write(h, &msg);
+        CAN_Write_debug(h, &msg);
     }
 
     void controlPDO(uint8_t CANid, u_int16_t control_word)
@@ -536,7 +512,7 @@ namespace canopen
         msg.LEN = 2;
         msg.DATA[0] = control_word;
         msg.DATA[1] = control_word >> 8;
-        CAN_Write(h, &msg);
+        CAN_Write_debug(h, &msg);
     }
 
     void uploadSDO(uint8_t CANid, SDOkey sdo)
@@ -554,7 +530,7 @@ namespace canopen
         msg.DATA[5] = 0x00;
         msg.DATA[6] = 0x00;
         msg.DATA[7] = 0x00;
-        CAN_Write(h, &msg);
+        CAN_Write_debug(h, &msg);
     }
 
     void test_sdo_types()
@@ -595,10 +571,10 @@ namespace canopen
         response_sdo.value = 0;
 
         time_start = std::chrono::high_resolution_clock::now();
-        while(response_sdo.can_id != CANid || response_sdo.index != sdo.index || response_sdo.subindex != sdo.subindex || response_sdo.value != value)
+        while(response_sdo.can_id != CANid || response_sdo.index != sdo.index || response_sdo.subindex != sdo.subindex || (IntType)response_sdo.value != value)
         {
             // Send new value
-            CAN_Write(h, &msg);
+            CAN_Write_debug(h, &msg);
 
             if(verify == false)
                 return true;
@@ -647,21 +623,17 @@ namespace canopen
             time_end = std::chrono::high_resolution_clock::now();
             elapsed_seconds = time_end-time_start;
 
-            if (!recover_active)
+            for (auto id : canopen::deviceGroups[chainName].getCANids())
             {
-                for (auto id : canopen::deviceGroups[chainName].getCANids())
+                if(elapsed_seconds.count() > 2)
                 {
-                    if(elapsed_seconds.count() > 2)
-                    {
-                        time_start = std::chrono::high_resolution_clock::now();
-                        getErrors(id);
-                        readManErrReg(id);
-                    }
+                    time_start = std::chrono::high_resolution_clock::now();
+                    getErrors(id);
+                    readManErrReg(id);
                 }
-                canopen::sendSync();
-                std::this_thread::sleep_for(std::chrono::milliseconds(10));
             }
-
+            canopen::sendSync();
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
     }
 
@@ -680,7 +652,7 @@ namespace canopen
         msg.DATA[5] = (max_velocity >> 8) & 0xFF;
         msg.DATA[6] = (max_velocity >> 16) & 0xFF;
         msg.DATA[7] = (max_velocity >> 24) & 0xFF;
-        CAN_Write(h, &msg);
+        CAN_Write_debug(h, &msg);
     }
 
     void RPDO4_outgoing(uint16_t CANid, int16_t target_torque)
@@ -698,7 +670,7 @@ namespace canopen
         msg.DATA[5] = 0x00;
         msg.DATA[6] = 0x00;
         msg.DATA[7] = 0x00;
-        CAN_Write(h, &msg);
+        CAN_Write_debug(h, &msg);
     }
 
     void defaultEMCY_incoming(uint16_t CANid, const TPCANRdMsg m)
@@ -853,6 +825,8 @@ namespace canopen
             //std::cout << "Reading incoming data" << std::endl;
             TPCANRdMsg m;
             errno = LINUX_CAN_Read(h, &m);
+            if(errno != 0)
+                std::cout << "LINUX_CAN_Read() " << errno << std::endl;
             if (errno)
                 perror("LINUX_CAN_Read() error");
 
@@ -925,6 +899,7 @@ namespace canopen
                 }
 
             }
+
             else
             {
                 // std::cout << "Received unknown message" << std::endl;
