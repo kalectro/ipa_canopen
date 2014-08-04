@@ -118,9 +118,8 @@ namespace canopen
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             if(counter++ >3)
             {
-                canopen::atFirstInit = true;
-                deviceGroups["motors"].setFirstInit(false);
-                //throw std::exception();
+                std::cout << "STATUS STILL UGLY... ABORTING" << std::endl;
+                return -1;
             }
         }
         DWORD return_me = LINUX_CAN_Write_Timeout(h, msg, 10000);
@@ -152,7 +151,6 @@ namespace canopen
 
     bool init(std::string deviceFile, std::string chainName, uint8_t max_pdo_channels)
     {
-        std::cout << "starting initialization" << std::endl;
         if(canopen::atFirstInit)
         {
             canopen::atFirstInit = false;
