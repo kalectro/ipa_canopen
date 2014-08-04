@@ -86,7 +86,6 @@ namespace canopen{
     // Define baudrates variables for accessing as string
     // this overrrides the definitions from the libpcan.h
     /**************************************************************/
-    //static std::map<std::string, uint16_t> baudrates;
 
     static std::map<std::string, uint32_t> baudrates = {
         {"1M" , CAN_BAUD_1M},
@@ -185,7 +184,7 @@ namespace canopen{
 
             Device() {};
 
-            Device(uint16_t CANid):
+            Device(uint8_t CANid):
                 CANid_(CANid),
                 desiredVel_(0),
                 actualVel_(0),
@@ -198,7 +197,7 @@ namespace canopen{
                 is_io_module(false),
                 nmt_init_(false) {};
 
-            Device(uint16_t CANid, std::string name, std::string group, std::string bus):
+            Device(uint8_t CANid, std::string name, std::string group, std::string bus):
                 CANid_(CANid),
                 name_(name),
                 group_(group),
@@ -214,7 +213,7 @@ namespace canopen{
                 is_io_module(false),
                 nmt_init_(false) {};
 
-            Device(uint16_t CANid, std::string name, std::string group):
+            Device(uint8_t CANid, std::string name, std::string group):
                 CANid_(CANid),
                 name_(name),
                 group_(group),
@@ -230,7 +229,7 @@ namespace canopen{
                 nmt_init_(false) {};
 
 
-            Device(uint16_t CANid, std::string name, std::string group, std::string bus, double conversion_factor, double offsets):
+            Device(uint8_t CANid, std::string name, std::string group, std::string bus, double conversion_factor, double offsets):
                 CANid_(CANid),
                 name_(name),
                 group_(group),
@@ -766,8 +765,8 @@ namespace canopen{
     //			define state machine functions
     /***************************************************************/
 
-    void setNMTState(uint16_t CANid, std::string targetState);
-    bool setMotorState(uint16_t CANid, std::string targetState, double timeout = 5.0);
+    void setNMTState(uint8_t CANid, std::string targetState);
+    bool setMotorState(uint8_t CANid, std::string targetState, double timeout = 5.0);
     bool setOperationMode(uint8_t CANid, int8_t targetMode, double timeout = 5.0);
 
     /***************************************************************/
@@ -783,15 +782,15 @@ namespace canopen{
     void clearTPDOMapping(uint8_t id, int object);
     void enableTPDO(uint8_t id, int object);
 
-    void getErrors(uint16_t CANid);
-    std::vector<char> obtainManSWVersion(uint16_t CANid, std::shared_ptr<TPCANRdMsg> m);
-    std::vector<char> obtainManHWVersion(uint16_t CANid, std::shared_ptr<TPCANRdMsg> m);
-    std::vector<char> obtainManDevName(uint16_t CANid, int size_name);
-    std::vector<uint16_t> obtainVendorID(uint16_t CANid);
-    uint16_t obtainRevNr(uint16_t CANid, std::shared_ptr<TPCANRdMsg> m);
-    std::vector<uint16_t> obtainProdCode(uint16_t CANid, std::shared_ptr<TPCANRdMsg> m);
-    void readErrorsRegister(uint16_t CANid, std::shared_ptr<TPCANRdMsg> m);
-    void readManErrReg(uint16_t CANid);
+    void getErrors(uint8_t CANid);
+    std::vector<char> obtainManSWVersion(uint8_t CANid, std::shared_ptr<TPCANRdMsg> m);
+    std::vector<char> obtainManHWVersion(uint8_t CANid, std::shared_ptr<TPCANRdMsg> m);
+    std::vector<char> obtainManDevName(uint8_t CANid, int size_name);
+    std::vector<uint8_t> obtainVendorID(uint8_t CANid);
+    uint16_t obtainRevNr(uint8_t CANid, std::shared_ptr<TPCANRdMsg> m);
+    std::vector<uint16_t> obtainProdCode(uint8_t CANid, std::shared_ptr<TPCANRdMsg> m);
+    void readErrorsRegister(uint8_t CANid, std::shared_ptr<TPCANRdMsg> m);
+    void readManErrReg(uint8_t CANid);
 
 
     /***************************************************************/
@@ -808,13 +807,13 @@ namespace canopen{
 
     bool openConnection(std::string devName, std::string baudrate);
 
-    bool init(std::string deviceFile, std::string chainName, uint8_t max_pdo_channels);
+    bool init(std::string deviceFile, std::string chainName, uint8_t CANid, uint8_t max_pdo_channels);
 
     void pdo_map(std::string chain_name, int pdo_id,
              std::vector<std::string> tpdo_registers, std::vector<int> tpdo_sizes, u_int8_t tsync_type,
              std::vector<std::string> rpdo_registers, std::vector<int> rpdo_sizes, u_int8_t rsync_type);
 
-    extern std::function< void (uint16_t CANid) > geterrors;
+    extern std::function< void (uint8_t CANid) > geterrors;
 
 
     /***************************************************************/
@@ -1070,12 +1069,12 @@ namespace canopen{
     void initDeviceManagerThread(std::string chainName, std::function<void (std::string)> const& deviceManager);
     void deviceManager(std::string chainName);
 
-    void RPDO2_outgoing(uint16_t CANid, int32_t target_position, uint32_t max_velocity);
-    void RPDO4_outgoing(uint16_t CANid, int16_t target_torque);
-    void TPDO1_incoming_motors(uint16_t CANid, const TPCANRdMsg m);
-    void TPDO2_incoming_motors(uint16_t CANid, const TPCANRdMsg m);
-    void TPDO1_incoming_io(uint16_t CANid, const TPCANRdMsg m);
-    void defaultEMCY_incoming(uint16_t CANid, const TPCANRdMsg m);
+    void RPDO2_outgoing(uint8_t CANid, int32_t target_position, uint32_t max_velocity);
+    void RPDO4_outgoing(uint8_t CANid, int16_t target_torque);
+    void TPDO1_incoming_motors(uint8_t CANid, const TPCANRdMsg m);
+    void TPDO2_incoming_motors(uint8_t CANid, const TPCANRdMsg m);
+    void TPDO1_incoming_io(uint8_t CANid, const TPCANRdMsg m);
+    void defaultEMCY_incoming(uint8_t CANid, const TPCANRdMsg m);
 
     /***************************************************************/
     //		define functions for receiving data
