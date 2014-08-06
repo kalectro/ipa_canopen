@@ -112,600 +112,546 @@ namespace canopen{
 
     class Device{
 
-        private:
-
-            uint8_t CANid_;
-            double conversion_factor_;
-            double offset_;
-            std::string NMTState_;
-            std::string motorState_;
-            std::string deviceFile_;
-            std::string name_;
-            std::string group_;
-
-            std::vector<char> manufacturer_sw_version_;
-            std::vector<char> manufacturer_hw_version_;
-            std::vector<char> manufacturer_device_name_;
-
-            std::vector<uint16_t> vendor_id_;
-            std::vector<uint16_t> product_code_;
-            uint16_t revision_number_;
-
-            std::string error_register_;
-            std::string manufacturer_error_register_;
-
-            bool initialized_;
-            bool nmt_init_;
-            bool driveReferenced_;
-            bool ip_mode_active_;
-            bool homingError_;
-            double actualPos_;		// unit = rad
-            double desiredPos_;		// unit = rad
-            double actualVel_;		// unit = rad/sec
-            double desiredVel_;		// unit = rad/sec
-            std::chrono::milliseconds timeStamp_msec_;
-            std::chrono::microseconds timeStamp_usec_;
-
-            int8_t modes_of_operation_display_;
-
-            bool hardware_limit_positive_;
-            bool hardware_limit_negative_;
-            bool input3_, input4_;
-
-
-            bool ready_switch_on_;
-            bool switched_on_;
-            bool op_enable_;
-            bool fault_;
-            bool volt_enable_;
-            bool quick_stop_;
-            bool switch_on_disabled_;
-            bool warning_;
-
-            bool mode_specific_;
-            bool remote_;
-            bool target_reached_;
-            bool internal_limit_;
-            bool op_specific_;
-            bool op_specific1_;
-            bool man_specific1_;
-            bool man_specific2_;
-
-            double temperature_;
-
-        public:
-
-            std::queue <ProfilePosition> position_commands;
-            int32_t ticks_per_rad_or_meter;
-            uint64_t inputs;
-            uint64_t outputs;
-            bool is_motor;
-            bool is_io_module;
-
-            Device() {};
-
-            Device(uint8_t CANid):
-                CANid_(CANid),
-                desiredVel_(0),
-                actualVel_(0),
-                desiredPos_(0),
-                actualPos_(0),
-                initialized_(false),
-                NMTState_("START_UP"),
-                motorState_("START_UP"),
-                is_motor(false),
-                is_io_module(false),
-                nmt_init_(false) {};
-
-            Device(uint8_t CANid, std::string name, std::string group, std::string bus):
-                CANid_(CANid),
-                name_(name),
-                group_(group),
-                deviceFile_(bus),
-                desiredVel_(0),
-                actualVel_(0),
-                desiredPos_(0),
-                actualPos_(0),
-                initialized_(false),
-                NMTState_("START_UP"),
-                motorState_("START_UP"),
-                is_motor(false),
-                is_io_module(false),
-                nmt_init_(false) {};
-
-            Device(uint8_t CANid, std::string name, std::string group):
-                CANid_(CANid),
-                name_(name),
-                group_(group),
-                desiredVel_(0),
-                actualVel_(0),
-                desiredPos_(0),
-                actualPos_(0),
-                NMTState_("START_UP"),
-                motorState_("START_UP"),
-                is_motor(false),
-                is_io_module(false),
-                initialized_(false),
-                nmt_init_(false) {};
-
-
-            Device(uint8_t CANid, std::string name, std::string group, std::string bus, double conversion_factor, double offsets):
-                CANid_(CANid),
-                name_(name),
-                group_(group),
-                deviceFile_(bus),
-                conversion_factor_(conversion_factor),
-                offset_(offsets),
-                desiredVel_(0),
-                actualVel_(0),
-                desiredPos_(0),
-                actualPos_(0),
-                NMTState_("START_UP"),
-                motorState_("START_UP"),
-                is_motor(false),
-                is_io_module(false),
-                initialized_(false),
-                nmt_init_(false) {};
-
-            bool getNMTInit(){
-                return nmt_init_;
-            }
-            
-            std::string getNMTState(){
-                return NMTState_;
-            }
-            
-            std::string getMotorState(){
-                return motorState_;
-            }
-
-            std::vector<char> getManufacturerSWVersion(){
-                return manufacturer_sw_version_;
-            }
-
-            std::vector<char> getManufacturerHWVersion(){
-                return manufacturer_hw_version_;
-            }
-
-            std::vector<char> getManufacturerDevName(){
-                return manufacturer_device_name_;
-            }
-
-           std::string getManufactureErrorRegister(){
-                return manufacturer_error_register_;
-            }
-
-            std::vector<uint16_t> getVendorID(){
-                return vendor_id_;
-            }
-
-            std::vector<uint16_t> getProdCode(){
-                return product_code_;
-            }
-
-            uint16_t getRevNumber(){
-                return revision_number_;
-            }
-
-            uint8_t getCANid(){
-                return CANid_;
-            }
-
-            double getConversionFactor(){
-                return conversion_factor_;
-            }
-
-            std::string getDeviceFile(){
-                return deviceFile_;
-            }
-            std::string getGroup(){
-                return group_;
-            }
-            std::string getName(){
-                return name_;
-            }
-
-            bool getInitialized(){
-                return initialized_;
-            }
-
-
-            bool getVoltageEnabled(){
-                return volt_enable_;
-            }
-
-            double getDriverTemperature(){
-                return temperature_;
-            }
-
-            bool getReadySwitchOn(){
-                return ready_switch_on_;
-            }
-
-            bool getSwitchOn(){
-                return switched_on_;
-            }
-
-            bool getOpEnabled(){
-                return op_enable_;
-            }
-
-            bool getQuickStop(){
-                return quick_stop_;
-            }
-
-            bool getSwitchOnDisabled(){
-                return switch_on_disabled_;
-            }
-
-            bool getWarning(){
-                return warning_;
-            }
-
-            bool getModeSpecific(){
-                return mode_specific_;
-            }
-
-            bool getRemote(){
-                return remote_;
-            }
-            bool getTargetReached(){
-                return target_reached_;
-            }
-
-            bool getInternalLimits(){
-                return internal_limit_;
-            }
-
-
-            bool getOpSpec0(){
-                return op_specific_;
-            }
-
-            bool getOpSpec1(){
-                return op_specific1_;
-            }
-
-            bool getManSpec1(){
-                return man_specific1_;
-            }
-
-            bool getmanSpec2(){
-                return man_specific2_;
-            }
-
-            bool getHomingError(){
-                return homingError_;
-            }
-
-
-            bool getNegativeLimit(){
-                return hardware_limit_negative_;
-            }
-
-            bool getPositiveLimit(){
-                return hardware_limit_positive_;
-            }
-
-            bool getInput3(){
-                return input3_;
-            }
-
-            bool getInput4(){
-                return input4_;
-            }
-
-            bool getFault(){
-                return fault_;
-            }
-
-
-            int8_t getCurrentModeofOperation()
-            {
-                return modes_of_operation_display_;
-            }
-
-            std::string getErrorRegister(){
-                return error_register_;
-            }
-
-            bool getIPMode(){
-                return ip_mode_active_;
-            }
-
-            bool getDriveReferenced(){
-                return driveReferenced_;
-            }
-            double getActualPos(){
-                return actualPos_;
-            }
-            double getDesiredPos(){
-                return desiredPos_;
-            }
-
-            double getActualVel(){
-                return actualVel_;
-            }
-
-            double getDesiredVel(){
-                return desiredVel_;
-            }
-
-            inline std::chrono::milliseconds getTimeStamp_msec(){
-                return timeStamp_msec_;
-            }
-
-            inline std::chrono::microseconds getTimeStamp_usec(){
-                return timeStamp_usec_;
-            }
-
-            void setActualPos(double pos){
-                actualPos_ = pos;
-            }
-
-            void setConversionFactor(double conversion_factor){
-                conversion_factor_ = conversion_factor;
-            }
-
-            void setDesiredPos(double pos){
-                desiredPos_ = pos;
-            }
-
-
-            void setActualVel(double vel){
-                actualVel_ = vel;
-            }
-
-            void setDesiredVel(double vel){
-                desiredVel_ = vel;
-            }
-
-            void setMotorState(std::string nextState){
-                motorState_ = nextState;
-            }
-
-            void setManufacturerSWVersion(std::vector<char> ms_version){
-                manufacturer_sw_version_ = ms_version;
-            }
-
-            void setManufacturerHWVersion(std::vector<char> mh_version){
-                manufacturer_hw_version_ = mh_version;
-            }
-
-            void setManufacturerDevName(std::vector<char> dev_name){
-                manufacturer_device_name_ = dev_name;
-            }
-
-            void setVendorID(std::vector<uint16_t> v_id){
-                vendor_id_ = v_id;
-            }
-
-            void setProdCode(std::vector<uint16_t> prod_code){
-                product_code_ = prod_code;
-            }
-
-
-            void setRevNum(uint16_t rev_num){
-                revision_number_ = rev_num;
-            }
-
-
-            void setNMTState(std::string nextState){
-                NMTState_ = nextState;
-            }
-
-
-            void setVoltageEnabled(bool voltage_enabled){
-                volt_enable_ = voltage_enabled;
-            }
-
-            void setDriverTemperature(double temperature){
-                temperature_ = temperature;
-            }
-
-            void setReadySwitchON(bool r_switch_on){
-                ready_switch_on_ = r_switch_on;
-            }
-
-            void setSwitchON(bool switch_on){
-                switched_on_ = switch_on;
-            }
-
-            void setOpEnable(bool op_enable){
-                op_enable_ = op_enable;
-            }
-
-            void setQuickStop(bool quick_stop){
-                quick_stop_ = quick_stop;
-            }
-
-            void setSwitchOnDisable(bool switch_disabled){
-                switch_on_disabled_ = switch_disabled;
-            }
-
-            void setWarning(bool warning){
-                warning_ = warning;
-            }
-
-
-            void setModeSpec(bool modespec){
-                mode_specific_ = modespec;
-            }
-
-
-            void setRemote(bool remote){
-                remote_ = remote;
-            }
-
-            void setManSpec1(bool manspec1){
-                man_specific1_ = manspec1;
-            }
-
-            void setTargetReached(bool target_reached){
-                target_reached_ = target_reached;
-            }
-
-            void setInternalLimits(bool internal_limits){
-                internal_limit_ = internal_limits;
-            }
-
-
-            void setManSpec2(bool manspec2){
-                man_specific2_ = manspec2;
-            }
-
-            void setOpSpec1(bool opspec1){
-                op_specific1_ = opspec1;
-            }
-
-            void setOpSpec0(bool opspec0){
-                op_specific_ = opspec0;
-            }
-
-            void setPositiveLimit(bool pos_limit){
-                hardware_limit_positive_ = pos_limit;
-            }
-
-            void setNegativeLimit(bool neg_limit){
-                hardware_limit_negative_ = neg_limit;
-            }
-            
-            void setInput3(bool value){
-                input3_ = value;
-            }
-
-            void setInput4(bool value){
-                input4_ = value;
-            }
-
-            void setNMTInit(bool nmt_limit)
-            {
-                nmt_init_ = nmt_limit;
-            }
-
-            void setFault(bool fault){
-                fault_ = fault;
-            }
-
-            void setCurrentModeofOperation(int8_t mode_display)
-            {
-                modes_of_operation_display_ = mode_display;
-            }
-
-            void setErrorRegister(std::string error_register){
-                error_register_ = error_register;
-            }
-
-            void setManufacturerErrorRegister(std::string manufacturer_error_register){
-                manufacturer_error_register_ = manufacturer_error_register;
-            }
-
-            void setIPMode(bool ip_mode){
-                ip_mode_active_ = ip_mode;
-            }
-
-            void setHoming(bool homing_error){
-                homingError_ = homing_error;
-            }
-
-            void setInitialized(bool initialized){
-                initialized_ = initialized;
-            }
-
-            void setTimeStamp_msec(std::chrono::milliseconds timeStamp){
-                timeStamp_msec_ = timeStamp;
-            }
-
-            void setTimeStamp_usec(std::chrono::microseconds timeStamp){
-                timeStamp_usec_ = timeStamp;
-            }
+    private:
+
+        uint8_t CANid_;
+        double conversion_factor_;
+        double offset_;
+        std::string NMTState_;
+        std::string motorState_;
+        std::string deviceFile_;
+        std::string name_;
+        std::string group_;
+
+        std::vector<char> manufacturer_sw_version_;
+        std::vector<char> manufacturer_hw_version_;
+        std::vector<char> manufacturer_device_name_;
+
+        std::vector<uint16_t> vendor_id_;
+        std::vector<uint16_t> product_code_;
+        uint16_t revision_number_;
+
+        std::string error_register_;
+
+        bool initialized_;
+        bool nmt_init_;
+        bool driveReferenced_;
+        bool ip_mode_active_;
+        bool homingError_;
+        int64_t actualPos_;		// unit = ticks
+        int32_t actualVel_;		// unit = ticks/sec
+        std::chrono::seconds timeStamp_sec_;
+        std::chrono::nanoseconds timeStamp_nsec_;
+
+        int8_t modes_of_operation_display_;
+
+        bool hardware_limit_positive_;
+        bool hardware_limit_negative_;
+        bool input3_, input4_;
+
+
+        bool ready_switch_on_;
+        bool switched_on_;
+        bool op_enable_;
+        bool fault_;
+        bool volt_enable_;
+        bool quick_stop_;
+        bool switch_on_disabled_;
+        bool warning_;
+
+        bool mode_specific_;
+        bool remote_;
+        bool target_reached_;
+        bool internal_limit_;
+        bool op_specific_;
+        bool op_specific1_;
+        bool man_specific1_;
+        bool man_specific2_;
+
+        double temperature_;
+
+    public:
+
+        std::queue <ProfilePosition> position_commands;
+        int32_t ticks_per_rad_or_meter;
+        uint64_t inputs;
+        uint64_t outputs;
+        bool is_motor;
+        bool is_io_module;
+        uint16_t statusword;
+
+        Device() {};
+
+        Device(uint8_t CANid):
+            CANid_(CANid),
+            actualVel_(0),
+            actualPos_(0),
+            initialized_(false),
+            NMTState_("START_UP"),
+            motorState_("START_UP"),
+            is_motor(false),
+            is_io_module(false),
+            nmt_init_(false) {};
+
+        Device(uint8_t CANid, std::string name, std::string group, std::string bus):
+            CANid_(CANid),
+            name_(name),
+            group_(group),
+            deviceFile_(bus),
+            actualVel_(0),
+            actualPos_(0),
+            initialized_(false),
+            NMTState_("START_UP"),
+            motorState_("START_UP"),
+            is_motor(false),
+            is_io_module(false),
+            nmt_init_(false) {};
+
+        Device(uint8_t CANid, std::string name, std::string group):
+            CANid_(CANid),
+            name_(name),
+            group_(group),
+            actualVel_(0),
+            actualPos_(0),
+            NMTState_("START_UP"),
+            motorState_("START_UP"),
+            is_motor(false),
+            is_io_module(false),
+            initialized_(false),
+            nmt_init_(false) {};
+
+
+        Device(uint8_t CANid, std::string name, std::string group, std::string bus, double conversion_factor, double offsets):
+            CANid_(CANid),
+            name_(name),
+            group_(group),
+            deviceFile_(bus),
+            conversion_factor_(conversion_factor),
+            offset_(offsets),
+            actualVel_(0),
+            actualPos_(0),
+            NMTState_("START_UP"),
+            motorState_("START_UP"),
+            is_motor(false),
+            is_io_module(false),
+            initialized_(false),
+            nmt_init_(false) {};
+
+        bool getNMTInit(){
+            return nmt_init_;
+        }
+
+        std::string getNMTState(){
+            return NMTState_;
+        }
+
+        std::string getMotorState(){
+            return motorState_;
+        }
+
+        std::vector<char> getManufacturerSWVersion(){
+            return manufacturer_sw_version_;
+        }
+
+        std::vector<char> getManufacturerHWVersion(){
+            return manufacturer_hw_version_;
+        }
+
+        std::vector<char> getManufacturerDevName(){
+            return manufacturer_device_name_;
+        }
+
+        std::vector<uint16_t> getVendorID(){
+            return vendor_id_;
+        }
+
+        std::vector<uint16_t> getProdCode(){
+            return product_code_;
+        }
+
+        uint16_t getRevNumber(){
+            return revision_number_;
+        }
+
+        uint8_t getCANid(){
+            return CANid_;
+        }
+
+        double getConversionFactor(){
+            return conversion_factor_;
+        }
+
+        std::string getDeviceFile(){
+            return deviceFile_;
+        }
+        std::string getGroup(){
+            return group_;
+        }
+        std::string getName(){
+            return name_;
+        }
+
+        bool getInitialized(){
+            return initialized_;
+        }
+
+
+        bool getVoltageEnabled(){
+            return volt_enable_;
+        }
+
+        double getDriverTemperature(){
+            return temperature_;
+        }
+
+        bool getReadySwitchOn(){
+            return ready_switch_on_;
+        }
+
+        bool getSwitchOn(){
+            return switched_on_;
+        }
+
+        bool getOpEnabled(){
+            return op_enable_;
+        }
+
+        bool getQuickStop(){
+            return quick_stop_;
+        }
+
+        bool getSwitchOnDisabled(){
+            return switch_on_disabled_;
+        }
+
+        bool getWarning(){
+            return warning_;
+        }
+
+        bool getModeSpecific(){
+            return mode_specific_;
+        }
+
+        bool getRemote(){
+            return remote_;
+        }
+        bool getTargetReached(){
+            return target_reached_;
+        }
+
+        bool getInternalLimits(){
+            return internal_limit_;
+        }
+
+
+        bool getOpSpec0(){
+            return op_specific_;
+        }
+
+        bool getOpSpec1(){
+            return op_specific1_;
+        }
+
+        bool getManSpec1(){
+            return man_specific1_;
+        }
+
+        bool getmanSpec2(){
+            return man_specific2_;
+        }
+
+        bool getHomingError(){
+            return homingError_;
+        }
+
+
+        bool getNegativeLimit(){
+            return hardware_limit_negative_;
+        }
+
+        bool getPositiveLimit(){
+            return hardware_limit_positive_;
+        }
+
+        bool getInput3(){
+            return input3_;
+        }
+
+        bool getInput4(){
+            return input4_;
+        }
+
+        bool getFault(){
+            return fault_;
+        }
+
+
+        int8_t getCurrentModeofOperation()
+        {
+            return modes_of_operation_display_;
+        }
+
+        std::string getErrorRegister(){
+            return error_register_;
+        }
+
+        bool getIPMode(){
+            return ip_mode_active_;
+        }
+
+        bool getDriveReferenced(){
+            return driveReferenced_;
+        }
+        double getActualPos(){
+            return actualPos_;
+        }
+
+        double getActualVel(){
+            return actualVel_;
+        }
+
+        inline uint32_t getTimeStamp_sec(){
+            return timeStamp_sec_.count();
+        }
+
+        inline uint32_t getTimeStamp_nsec(){
+            return timeStamp_nsec_.count();
+        }
+
+        void setActualPos(double pos){
+            actualPos_ = pos;
+        }
+
+        void setConversionFactor(double conversion_factor){
+            conversion_factor_ = conversion_factor;
+        }
+
+        void setActualVel(double vel){
+            actualVel_ = vel;
+        }
+
+        void setMotorState(std::string nextState){
+            motorState_ = nextState;
+        }
+
+        void setManufacturerSWVersion(std::vector<char> ms_version){
+            manufacturer_sw_version_ = ms_version;
+        }
+
+        void setManufacturerHWVersion(std::vector<char> mh_version){
+            manufacturer_hw_version_ = mh_version;
+        }
+
+        void setManufacturerDevName(std::vector<char> dev_name){
+            manufacturer_device_name_ = dev_name;
+        }
+
+        void setVendorID(std::vector<uint16_t> v_id){
+            vendor_id_ = v_id;
+        }
+
+        void setProdCode(std::vector<uint16_t> prod_code){
+            product_code_ = prod_code;
+        }
+
+
+        void setRevNum(uint16_t rev_num){
+            revision_number_ = rev_num;
+        }
+
+
+        void setNMTState(std::string nextState){
+            NMTState_ = nextState;
+        }
+
+
+        void setVoltageEnabled(bool voltage_enabled){
+            volt_enable_ = voltage_enabled;
+        }
+
+        void setDriverTemperature(double temperature){
+            temperature_ = temperature;
+        }
+
+        void setReadySwitchON(bool r_switch_on){
+            ready_switch_on_ = r_switch_on;
+        }
+
+        void setSwitchON(bool switch_on){
+            switched_on_ = switch_on;
+        }
+
+        void setOpEnable(bool op_enable){
+            op_enable_ = op_enable;
+        }
+
+        void setQuickStop(bool quick_stop){
+            quick_stop_ = quick_stop;
+        }
+
+        void setSwitchOnDisable(bool switch_disabled){
+            switch_on_disabled_ = switch_disabled;
+        }
+
+        void setWarning(bool warning){
+            warning_ = warning;
+        }
+
+
+        void setModeSpec(bool modespec){
+            mode_specific_ = modespec;
+        }
+
+
+        void setRemote(bool remote){
+            remote_ = remote;
+        }
+
+        void setManSpec1(bool manspec1){
+            man_specific1_ = manspec1;
+        }
+
+        void setTargetReached(bool target_reached){
+            target_reached_ = target_reached;
+        }
+
+        void setInternalLimits(bool internal_limits){
+            internal_limit_ = internal_limits;
+        }
+
+
+        void setManSpec2(bool manspec2){
+            man_specific2_ = manspec2;
+        }
+
+        void setOpSpec1(bool opspec1){
+            op_specific1_ = opspec1;
+        }
+
+        void setOpSpec0(bool opspec0){
+            op_specific_ = opspec0;
+        }
+
+        void setPositiveLimit(bool pos_limit){
+            hardware_limit_positive_ = pos_limit;
+        }
+
+        void setNegativeLimit(bool neg_limit){
+            hardware_limit_negative_ = neg_limit;
+        }
+
+        void setInput3(bool value){
+            input3_ = value;
+        }
+
+        void setInput4(bool value){
+            input4_ = value;
+        }
+
+        void setNMTInit(bool nmt_limit)
+        {
+            nmt_init_ = nmt_limit;
+        }
+
+        void setFault(bool fault){
+            fault_ = fault;
+        }
+
+        void setCurrentModeofOperation(int8_t mode_display)
+        {
+            modes_of_operation_display_ = mode_display;
+        }
+
+        void setErrorRegister(std::string error_register){
+            error_register_ = error_register;
+        }
+
+        void setIPMode(bool ip_mode){
+            ip_mode_active_ = ip_mode;
+        }
+
+        void setHoming(bool homing_error){
+            homingError_ = homing_error;
+        }
+
+        void setInitialized(bool initialized){
+            initialized_ = initialized;
+        }
+
+        void setTimeStamp_sec(std::chrono::seconds timeStamp){
+            timeStamp_sec_ = timeStamp;
+        }
+
+        void setTimeStamp_nsec(std::chrono::nanoseconds timeStamp){
+            timeStamp_nsec_ = timeStamp;
+        }
     };
 
     extern std::map<uint8_t, Device> devices;
 
     class DeviceGroup{
 
-        private:
+    private:
 
-            std::vector<uint8_t> CANids_;
-            std::vector<std::string> names_;
-            bool initialized_;
-            bool atFirstInit_;
+        std::vector<uint8_t> CANids_;
+        std::vector<std::string> names_;
+        bool initialized_;
+        bool atFirstInit_;
 
-        public:
+    public:
 
-            DeviceGroup() {};
+        DeviceGroup() {};
 
-            DeviceGroup(std::vector<uint8_t> CANids):
-                CANids_(CANids) {};
+        DeviceGroup(std::vector<uint8_t> CANids):
+            CANids_(CANids) {};
 
-            DeviceGroup(std::vector<uint8_t> CANids, std::vector<std::string> names):
-                CANids_(CANids),
-                names_(names),
-                initialized_(false),
-                atFirstInit_(true) {};
-
-
-            std::vector<uint8_t> getCANids(){
-                return CANids_;
-            }
-
-            std::vector<std::string> getNames(){
-                return names_;
-            }
-
-            void setInitialized(bool initialized){
-                initialized_ = initialized;
-            }
-
-            bool getInitialized(){
-                return initialized_;
-            }
-
-            bool getFirstInit()
-            {
-                return atFirstInit_;
-            }
-
-            void setFirstInit(bool initialized)
-            {
-                initialized_ = initialized;
-            }
+        DeviceGroup(std::vector<uint8_t> CANids, std::vector<std::string> names):
+            CANids_(CANids),
+            names_(names),
+            initialized_(false),
+            atFirstInit_(true) {};
 
 
-            std::vector<double> getActualPos() {
-                    std::vector<double> actualPos;
-                    for (uint8_t CANid : CANids_)
-                    actualPos.push_back(devices[CANid].getActualPos());
-                    return actualPos;
-                }
+        std::vector<uint8_t> getCANids(){
+            return CANids_;
+        }
 
-                std::vector<double> getDesiredPos() {
-                    std::vector<double> desiredPos;
-                    for (auto CANid : CANids_)
-                        desiredPos.push_back(devices[CANid].getDesiredPos());
-                    return desiredPos;
-                }
+        std::vector<std::string> getNames(){
+            return names_;
+        }
 
-            std::vector<double> getActualVel() {
-                std::vector<double> actualVel;
-                for (auto CANid : CANids_)
-                    actualVel.push_back(devices[CANid].getActualVel());
-                return actualVel;
-            }
+        void setInitialized(bool initialized){
+            initialized_ = initialized;
+        }
 
-            std::vector<double> getDesiredVel() {
-                std::vector<double> desiredVel;
-                for (auto CANid : CANids_)
-                    desiredVel.push_back(devices[CANid].getDesiredVel());
-                return desiredVel;
-            }
+        bool getInitialized(){
+            return initialized_;
+        }
 
-            void setVel(std::vector<double> velocities) {
-                for (unsigned int i=0; i<velocities.size(); i++) {
-                    devices[CANids_[i]].setDesiredVel(velocities[i]);
-                }
-                }
+        bool getFirstInit()
+        {
+            return atFirstInit_;
+        }
+
+        void setFirstInit(bool initialized)
+        {
+            initialized_ = initialized;
+        }
+
+
+        std::vector<double> getActualPos() {
+            std::vector<double> actualPos;
+            for (uint8_t CANid : CANids_)
+                actualPos.push_back(devices[CANid].getActualPos());
+            return actualPos;
+        }
+
+        std::vector<double> getActualVel() {
+            std::vector<double> actualVel;
+            for (auto CANid : CANids_)
+                actualVel.push_back(devices[CANid].getActualVel());
+            return actualVel;
+        }
     };
 
     struct SDOkey{
@@ -735,7 +681,7 @@ namespace canopen{
     /***************************************************************/
 
     inline bool operator<(const SDOkey &a, const SDOkey&b) {
-            return a.index < b.index || (a.index == b.index && a.subindex < b.subindex);
+        return a.index < b.index || (a.index == b.index && a.subindex < b.subindex);
     }
 
     inline int32_t rad2mdeg(double phi){
@@ -810,8 +756,8 @@ namespace canopen{
     bool init(std::string deviceFile, std::string chainName, uint8_t CANid, uint8_t max_pdo_channels);
 
     void pdo_map(std::string chain_name, int pdo_id,
-             std::vector<std::string> tpdo_registers, std::vector<int> tpdo_sizes, u_int8_t tsync_type,
-             std::vector<std::string> rpdo_registers, std::vector<int> rpdo_sizes, u_int8_t rsync_type);
+                 std::vector<std::string> tpdo_registers, std::vector<int> tpdo_sizes, u_int8_t tsync_type,
+                 std::vector<std::string> rpdo_registers, std::vector<int> rpdo_sizes, u_int8_t rsync_type);
 
     extern std::function< void (uint8_t CANid) > geterrors;
 
@@ -840,23 +786,6 @@ namespace canopen{
         NMTmsg.DATA[0] = command;
         NMTmsg.DATA[1] = CANid;
         CAN_Write(h, &NMTmsg);
-    }
-
-    /***************************************************************/
-    //	define SYNC variables and functions
-    /***************************************************************/
-
-    extern TPCANMsg syncMsg;
-
-    inline void sendSync() {
-        TPCANMsg syncMsg;
-        std::memset(&syncMsg, 0, sizeof(syncMsg));
-        syncMsg.ID = 0x80;
-        syncMsg.MSGTYPE = 0x00;
-
-        syncMsg.LEN = 0x00;
-
-        CAN_Write(h, &syncMsg);
     }
 
     /***************************************************************/
@@ -900,7 +829,6 @@ namespace canopen{
 
     const SDOkey STATUSWORD(0x6041, 0x0);
     const SDOkey ERRORWORD(0x1001, 0x0);
-    const SDOkey MANUFACTURER(0x1002, 0x0);
     const SDOkey MANUFACTURERDEVICENAME(0x1008, 0x0);
     const SDOkey MANUFACTURERHWVERSION(0x1009, 0x0);
     const SDOkey MANUFACTURERSOFTWAREVERSION(0x100A, 0x0);
@@ -978,7 +906,7 @@ namespace canopen{
     const int8_t MODES_OF_OPERATION_INTERPOLATED_POSITION_MODE = 0x7;
 
     const u_int16_t COB_SYNC = 0x80;
-    const u_int16_t COB_EMERGENCY = 0x81;
+    const u_int16_t COB_EMERGENCY = 0x80;
     const u_int16_t COB_TIME_STAMP = 0x100;
     const u_int16_t COB_PDO1_RX = 0x200;
     const u_int16_t COB_PDO2_RX = 0x300;
@@ -1039,8 +967,8 @@ namespace canopen{
 
     static const char * const modesDisplay[] =
     {"NO_MODE", "PROFILE_POSITION_MODE", "VELOCITY", "PROFILE_VELOCITY_MODE",
-                              "TORQUE_PROFILED_MODE", "RESERVED", "HOMING_MODE", "INTERPOLATED_POSITION_MODE",
-                              "CYCLIC_SYNCHRONOUS_POSITION"};
+     "TORQUE_PROFILED_MODE", "RESERVED", "HOMING_MODE", "INTERPOLATED_POSITION_MODE",
+     "CYCLIC_SYNCHRONOUS_POSITION"};
 
     const int8_t IP_TIME_INDEX_MILLISECONDS = 0xFD;
     const int8_t IP_TIME_INDEX_HUNDREDMICROSECONDS = 0xFC;
@@ -1074,7 +1002,7 @@ namespace canopen{
     void TPDO1_incoming_motors(uint8_t CANid, const TPCANRdMsg m);
     void TPDO2_incoming_motors(uint8_t CANid, const TPCANRdMsg m);
     void TPDO1_incoming_io(uint8_t CANid, const TPCANRdMsg m);
-    void defaultEMCY_incoming(uint8_t CANid, const TPCANRdMsg m);
+    void EMCY_incoming(uint8_t CANid, const TPCANRdMsg m);
 
     /***************************************************************/
     //		define functions for receiving data
