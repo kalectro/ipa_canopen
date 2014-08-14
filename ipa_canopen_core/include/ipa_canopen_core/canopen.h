@@ -77,6 +77,7 @@
 #include <stdint.h>
 #include <inttypes.h>
 #include "schunkErrors.h"
+#include "nanotecErrors.h"
 #include <queue>
 
 namespace canopen{
@@ -131,8 +132,6 @@ namespace canopen{
         std::vector<uint16_t> product_code_;
         uint16_t revision_number_;
 
-        std::string error_register_;
-
         bool initialized_;
         bool nmt_init_;
         bool driveReferenced_;
@@ -179,6 +178,7 @@ namespace canopen{
         bool is_motor;
         bool is_io_module;
         uint16_t statusword;
+        std::string last_error;
 
         Device() {};
 
@@ -391,10 +391,6 @@ namespace canopen{
             return modes_of_operation_display_;
         }
 
-        std::string getErrorRegister(){
-            return error_register_;
-        }
-
         bool getIPMode(){
             return ip_mode_active_;
         }
@@ -562,10 +558,6 @@ namespace canopen{
             modes_of_operation_display_ = mode_display;
         }
 
-        void setErrorRegister(std::string error_register){
-            error_register_ = error_register;
-        }
-
         void setIPMode(bool ip_mode){
             ip_mode_active_ = ip_mode;
         }
@@ -701,9 +693,7 @@ namespace canopen{
     extern HANDLE h;
     extern std::vector<std::string> openDeviceFiles;
     extern bool atFirstInit;
-    extern std::map<SDOkey, std::function<void (uint8_t CANid, BYTE data[8])> > incomingDataHandlers;
     extern std::map<uint16_t, std::function<void (const TPCANRdMsg m)> > incomingPDOHandlers;
-    extern std::map<uint16_t, std::function<void (const TPCANRdMsg m)> > incomingEMCYHandlers;
 
     SDOanswer requested_sdo;
     SDOanswer response_sdo;
@@ -715,9 +705,6 @@ namespace canopen{
     bool setMotorState(uint8_t CANid, std::string targetState, double timeout = 5.0);
     bool setOperationMode(uint8_t CANid, int8_t targetMode, double timeout = 5.0);
 
-    /***************************************************************/
-    //	define get errors functions
-    /***************************************************************/
     void makeRPDOMapping(uint8_t id, int object, std::vector<std::string> registers, std::vector<int> sizes, u_int8_t sync_type);
     void disableRPDO(uint8_t id, int object);
     void clearRPDOMapping(uint8_t id, int object);
@@ -728,14 +715,12 @@ namespace canopen{
     void clearTPDOMapping(uint8_t id, int object);
     void enableTPDO(uint8_t id, int object);
 
-    void getErrors(uint8_t CANid);
     std::vector<char> obtainManSWVersion(uint8_t CANid, std::shared_ptr<TPCANRdMsg> m);
     std::vector<char> obtainManHWVersion(uint8_t CANid, std::shared_ptr<TPCANRdMsg> m);
     std::vector<char> obtainManDevName(uint8_t CANid, int size_name);
     std::vector<uint8_t> obtainVendorID(uint8_t CANid);
     uint16_t obtainRevNr(uint8_t CANid, std::shared_ptr<TPCANRdMsg> m);
     std::vector<uint16_t> obtainProdCode(uint8_t CANid, std::shared_ptr<TPCANRdMsg> m);
-    void readErrorsRegister(uint8_t CANid, std::shared_ptr<TPCANRdMsg> m);
     void readManErrReg(uint8_t CANid);
 
 
@@ -758,8 +743,6 @@ namespace canopen{
     void pdo_map(std::string chain_name, int pdo_id,
                  std::vector<std::string> tpdo_registers, std::vector<int> tpdo_sizes, u_int8_t tsync_type,
                  std::vector<std::string> rpdo_registers, std::vector<int> rpdo_sizes, u_int8_t rsync_type);
-
-    extern std::function< void (uint8_t CANid) > geterrors;
 
 
     /***************************************************************/
