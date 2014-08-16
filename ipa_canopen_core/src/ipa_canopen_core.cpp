@@ -78,7 +78,6 @@ namespace canopen
     std::vector<std::thread> managerThreads;
     std::vector<std::string> openDeviceFiles;
     bool atFirstInit=true;
-    std::map<SDOkey, std::function<void (uint8_t CANid, BYTE data[8])> > incomingErrorHandlers { { ERRORWORD, errorword_incoming } };
     std::map<SDOkey, std::function<void (uint8_t CANid, BYTE data[8])> > incomingManufacturerDetails { {MANUFACTURERHWVERSION, manufacturer_incoming}, {MANUFACTURERDEVICENAME, manufacturer_incoming}, {MANUFACTURERSOFTWAREVERSION, manufacturer_incoming} };
     std::map<uint16_t, std::function<void (const TPCANRdMsg m)> > incomingPDOHandlers;
     std::map<uint16_t, std::function<void (const TPCANRdMsg m)> > incomingEMCYHandlers;
@@ -107,8 +106,6 @@ namespace canopen
     DWORD CAN_Write_debug(HANDLE h, TPCANMsg *msg)
     {
         DWORD status = CAN_Status(h);
-//        if(status != 32)
-//            std::cout << "Status is " << status << std::endl;
         int nreads, nwrites;
         int counter = 0;
         while(status & 0x80)
@@ -118,7 +115,7 @@ namespace canopen
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
             if(counter++ >3)
             {
-                std::cout << "STATUS STILL UGLY... ABORTING CAN WRITE" << std::endl;
+                std::cout << "STATUS UGLY... ABORTING CAN WRITE" << std::endl;
                 return -1;
             }
         }
@@ -336,8 +333,6 @@ namespace canopen
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
         canopen::sendNMT(CANid, canopen::NMT_START_REMOTE_NODE);
         std::cout << std::hex << "Initialized the PDO mapping for Node: " << (int)CANid << std::endl;
-
-        getErrors(CANid);
         canopen::devices[CANid].setInitialized(true);
         return true;
     }
@@ -621,10 +616,9 @@ namespace canopen
                 if(elapsed_seconds.count() > 2)
                 {
                     time_start = std::chrono::high_resolution_clock::now();
-                    getErrors(id);
                 }
             }
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
         }
     }
 
@@ -798,7 +792,34 @@ namespace canopen
 
     void EMCY_incoming(uint8_t CANid, const TPCANRdMsg m)
     {
-        std::cout << std::hex << "EMCY incoming from CAN id " << (int)CANid << " message " << (int)m.Msg.DATA[0] << " " << (int)m.Msg.DATA[1] << " " << (int)m.Msg.DATA[2] << " " << (int)m.Msg.DATA[3] << std::endl;
+        std::stringstream error_stream;
+
+        uint16_t error_code =  m.Msg.DATA[0] +  m.Msg.DATA[1] << 8;
+        uint8_t error_class = m.Msg.DATA[2];
+        uint8_t error_number = m.Msg.DATA[3];
+
+
+        error_stream << std::hex << "ERROR: " << NanotecErrorNumber[error_number] << " ERROR CATEGORIES: ";
+
+        if ( error_class & EMC_k_1001_GENERIC )
+            error_stream << "generic ";
+        if ( error_class & EMC_k_1001_CURRENT)
+            error_stream << "current ";
+        if ( error_class & EMC_k_1001_VOLTAGE )
+            error_stream << "voltage ";
+        if ( error_class & EMC_k_1001_TEMPERATURE )
+            error_stream << "temperature ";
+        if ( error_class & EMC_k_1001_COMMUNICATION )
+            error_stream << "communication ";
+        if ( error_class & EMC_k_1001_DEV_PROF_SPEC )
+            error_stream << "device profile specific ";
+        if ( error_class & EMC_k_1001_RESERVED )
+            error_stream << "reserved ";
+        if ( error_class & EMC_k_1001_MANUFACTURER)
+            error_stream << "manufacturer specific ";
+
+        std::cout << error_stream << std::endl;
+        devices[CANid].last_error = error_stream.str();
     }
 
     void initListenerThread(std::function<void ()> const& listener)
@@ -829,8 +850,6 @@ namespace canopen
             // incoming EMCY
             else if (m.Msg.ID >= COB_EMERGENCY && m.Msg.ID < COB_TIME_STAMP)
             {
-                if (incomingEMCYHandlers.find(m.Msg.ID) != incomingEMCYHandlers.end())
-                    incomingEMCYHandlers[m.Msg.ID](m);
                 EMCY_incoming(m.Msg.ID - COB_EMERGENCY, m);
             }
 
@@ -857,11 +876,9 @@ namespace canopen
                 }
                 else
                 {
-                    if (incomingErrorHandlers.find(sdoKey) != incomingErrorHandlers.end())
-                        incomingErrorHandlers[sdoKey](m.Msg.ID - COB_SDO_TX, m.Msg.DATA);
-                    else if (incomingManufacturerDetails.find(sdoKey) != incomingManufacturerDetails.end())
+                    if (incomingManufacturerDetails.find(sdoKey) != incomingManufacturerDetails.end())
                         incomingManufacturerDetails[sdoKey](m.Msg.ID - COB_SDO_TX, m.Msg.DATA);
-                    else  //if (incomingDataHandlers.find(sdoKey) != incomingDataHandlers.end())
+                    else
                         sdo_incoming(m.Msg.ID - COB_SDO_TX, m.Msg.DATA);
                 }
             }
@@ -892,11 +909,6 @@ namespace canopen
         }
     }
 
-    void getErrors(uint8_t CANid)
-    {
-        canopen::uploadSDO(CANid, canopen::ERRORWORD);
-    }
-
     void manufacturer_incoming(uint8_t CANid, BYTE data[8])
     {
         sdo_protect = true;
@@ -907,79 +919,6 @@ namespace canopen
 
             devices[CANid].setManufacturerDevName(manufacturer_device_name);
         }
-        /*
-    else if(data[1]+(data[2]<<8) == 0x1009)
-    {
-
-    }
-    */
-    }
-
-    void errorword_incoming(uint8_t CANid, BYTE data[8])
-    {
-        std::stringstream str_stream;
-
-        if(data[1]+(data[2]<<8) == 0x1001)
-        {
-            uint16_t error_register;
-            error_register = data[4];
-
-            str_stream << "error_register=0x" << std::hex << (int)error_register << ", categories:";
-
-            if ( error_register & canopen::EMC_k_1001_GENERIC )
-                str_stream << " generic,";
-            if ( error_register & canopen::EMC_k_1001_CURRENT)
-                str_stream << " current,";
-            if ( error_register & canopen::EMC_k_1001_VOLTAGE )
-                str_stream << " voltage,";
-            if ( error_register & canopen::EMC_k_1001_TEMPERATURE )
-                str_stream << " temperature,";
-            if ( error_register & canopen::EMC_k_1001_COMMUNICATION )
-                str_stream << " communication,";
-            if ( error_register & canopen::EMC_k_1001_DEV_PROF_SPEC )
-                str_stream << " device profile specific,";
-            if ( error_register & canopen::EMC_k_1001_RESERVED )
-                str_stream << " reserved,";
-            if ( error_register & canopen::EMC_k_1001_MANUFACTURER)
-                str_stream << " manufacturer specific";
-            str_stream << "\n";
-
-            devices[CANid].setErrorRegister(str_stream.str());
-        }
-    }
-
-    void readErrorsRegister(uint8_t CANid, std::shared_ptr<TPCANRdMsg> m)
-    {
-        canopen::uploadSDO(CANid, canopen::STATUSWORD);
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        canopen::processSingleSDO(CANid, m);
-
-        canopen::uploadSDO(CANid, canopen::ERRORWORD);
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        canopen::processSingleSDO(CANid, m);
-
-        uint16_t error_register;
-        error_register = m->Msg.DATA[4];
-
-        std::cout << "error_register=0x" << std::hex << (int)error_register << ", categories:";
-
-        if ( error_register & canopen::EMC_k_1001_GENERIC )
-            std::cout << " generic,";
-        if ( error_register & canopen::EMC_k_1001_CURRENT)
-            std::cout << " current,";
-        if ( error_register & canopen::EMC_k_1001_VOLTAGE )
-            std::cout << " voltage,";
-        if ( error_register & canopen::EMC_k_1001_TEMPERATURE )
-            std::cout << " temperature,";
-        if ( error_register & canopen::EMC_k_1001_COMMUNICATION )
-            std::cout << " communication,";
-        if ( error_register & canopen::EMC_k_1001_DEV_PROF_SPEC )
-            std::cout << " device profile specific,";
-        if ( error_register & canopen::EMC_k_1001_RESERVED )
-            std::cout << " reserved,";
-        if ( error_register & canopen::EMC_k_1001_MANUFACTURER)
-            std::cout << " manufacturer specific";
-        std::cout << "\n";
     }
 
     std::vector<uint8_t> obtainVendorID(uint8_t CANid)
@@ -1176,12 +1115,12 @@ namespace canopen
                     break;
             }
         }
-        else if(data[0] == 0x60)
+        else if(data[0] == 0x60)  // SDO confirm
         {
             response_sdo.confirmed = true;
             //std::cout << std::hex << "Write SDO confirmed from " << (int)CANid << " with id " << sdo_id << "s" << (int)sdo_id_sub << std::endl;
         }
-        else if(data[0] == 0x80)
+        else if(data[0] == 0x80)  // SDO abort
         {
             response_sdo.aborted = true;
             uint32_t abort_code = data[4] + (data[5] << 8) + (data[6] << 16) + (data[7] << 24);
@@ -1189,104 +1128,9 @@ namespace canopen
             std::cout << std::hex << "SDO abort from CAN id " << (int)CANid << " for SDO 0x" << sdo_id << "s" << (int)sdo_id_sub << " with the following error message:" << std::endl;
             std::cout << " " << error_message << std::endl;
         }
-        else
+        else // no idea what I received
         {
             std::cout << std::hex << "Received SDO from 0x" << (int)CANid << " with id 0x" << sdo_id << "s" << (int)sdo_id_sub << " and command byte 0x" << (int)data[0] << "  DATA: " << (int)data[4] << " " << (int)data[5] << " " << (int)data[6] << " " << (int)data[7] << std::endl;
-        }
-
-        if(sdo_id == STATUSWORD.index) //The incoming message is a result from a statusWord Request
-        {
-            uint16_t mydata_low = data[4];
-            uint16_t mydata_high = data[5];
-
-            bool ready_switch_on = mydata_low & 0x01;
-            bool switched_on = mydata_low & 0x02;
-            bool op_enable = mydata_low & 0x04;
-            bool fault = mydata_low & 0x08;
-            bool volt_enable = mydata_low & 0x10;
-            bool quick_stop = mydata_low & 0x20;
-            bool switch_on_disabled = mydata_low & 0x40;
-            bool warning = mydata_low & 0x80;
-
-            bool mode_specific = mydata_high & 0x01;
-            bool remote = mydata_high & 0x02;
-            bool target_reached = mydata_high & 0x04;
-            bool internal_limit = mydata_high & 0x08;
-            bool op_specific = mydata_high & 0x10;
-            bool op_specific1 = mydata_high & 0x20;
-            bool man_specific1 = mydata_high & 0x40;
-            bool man_specific2 = mydata_high & 0x80;
-
-            if(!ready_switch_on)
-            {
-                if(fault)
-                {
-                    devices[CANid].setMotorState(canopen::MS_FAULT);
-                }
-                else if(switch_on_disabled)
-                {
-                    devices[CANid].setMotorState(canopen::MS_SWITCHED_ON_DISABLED);
-                }
-                else
-                    devices[CANid].setMotorState(canopen::MS_NOT_READY_TO_SWITCH_ON);
-            }
-
-            else
-            {
-                if(switched_on)
-                {
-                    if(op_enable)
-                    {
-
-                        //if(volt_enable)
-                        // {
-                        devices[CANid].setMotorState(canopen::MS_OPERATION_ENABLED);
-                        // }
-
-                    }
-                    else
-                        devices[CANid].setMotorState(canopen::MS_SWITCHED_ON);
-                }
-                else if(!quick_stop)
-                    devices[CANid].setMotorState(canopen::MS_QUICK_STOP_ACTIVE);
-
-                else
-                    devices[CANid].setMotorState(canopen::MS_READY_TO_SWITCH_ON);
-
-            }
-
-            if(fault & op_enable & switched_on & ready_switch_on)
-                devices[CANid].setMotorState(canopen::MS_FAULT_REACTION_ACTIVE);
-
-
-
-            devices[CANid].setFault(fault);
-            devices[CANid].setHoming(op_specific);
-            devices[CANid].setOpSpec0(op_specific);
-            devices[CANid].setOpSpec1(op_specific1);
-            devices[CANid].setManSpec1(man_specific1);
-            devices[CANid].setManSpec2(man_specific2);
-            devices[CANid].setInternalLimits(internal_limit);
-            devices[CANid].setTargetReached(target_reached);
-            devices[CANid].setRemote(remote);
-            devices[CANid].setModeSpec(mode_specific);
-            devices[CANid].setWarning(warning);
-            devices[CANid].setSwitchOnDisable(switch_on_disabled);
-            devices[CANid].setQuickStop(quick_stop);
-            devices[CANid].setOpEnable(op_enable);
-            devices[CANid].setVoltageEnabled(volt_enable);
-            devices[CANid].setReadySwitchON(ready_switch_on);
-            devices[CANid].setSwitchON(switched_on);
-
-            //std::cout << "Motor State of Device with CANid " << (uint16_t)CANid << " is: " << devices[CANid].getMotorState() << std::endl;
-        }
-        else if(sdo_id == MODES_OF_OPERATION_DISPLAY.index) //Incoming message is a mode of operation display
-        {
-            devices[CANid].setCurrentModeofOperation(data[4]);
-        }
-        else if(sdo_id == ERRORWORD.index)
-        {
-            std::cout << std::hex << "ERROR!!!! " << response_sdo.value << std::endl;
         }
 
         // check if SDO was requested
