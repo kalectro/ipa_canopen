@@ -255,20 +255,24 @@ namespace canopen
                         rsync_type = SYNC_TYPE_ASYNCHRONOUS;
                         break;
                     case 2:
-                        // Position Actual Value
                         if(devices[CANid].has_encoder)
                         {
+                            // Position Actual Value
                             tpdo_registers.push_back("606400");
+                            tpdo_sizes.push_back(0x20);
+                            // Velocity Actual Value
+                            tpdo_registers.push_back("604400");
+                            tpdo_sizes.push_back(0x10);
                         }
                         else
                         {
+                            // Position Demand Value
                             tpdo_registers.push_back("606200");
+                            tpdo_sizes.push_back(0x20);
+                            // Velocity Demand Value
+                            tpdo_registers.push_back("604300");
+                            tpdo_sizes.push_back(0x10);
                         }
-                        tpdo_sizes.push_back(0x20);
-
-                        // Velocity Actual Value
-                        tpdo_registers.push_back("604400");
-                        tpdo_sizes.push_back(0x10);
 
                         // Target Position Value
                         rpdo_registers.push_back("607A00");
