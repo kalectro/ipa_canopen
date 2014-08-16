@@ -3,6 +3,10 @@ project(ipa_canopen_core)
 
 find_package(catkin REQUIRED COMPONENTS roscpp libpcan)
 
+
+FILE(GLOB ff "include/ipa_canopen_core/*.h*")
+add_custom_target(qwelkjh   qe SOURCES ${ff})
+
 if(CMAKE_COMPILER_IS_GNUCXX)
    execute_process(COMMAND ${CMAKE_C_COMPILER} -dumpversion OUTPUT_VARIABLE GCC_VERSION)
    if (GCC_VERSION VERSION_GREATER 4.7 OR GCC_VERSION VERSION_EQUAL 4.7)
