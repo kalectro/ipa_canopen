@@ -172,6 +172,8 @@ namespace canopen{
 
     public:
 
+        float polarity;
+
         std::queue <ProfilePosition> position_commands;
         int32_t ticks_per_rad_or_meter;
         uint64_t inputs;
@@ -418,7 +420,7 @@ namespace canopen{
             return timeStamp_nsec_.count();
         }
 
-        void setActualPos(double pos){
+        void setActualPos(int64_t pos){
             actualPos_ = pos;
         }
 
