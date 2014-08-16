@@ -176,6 +176,7 @@ namespace canopen{
         uint64_t inputs;
         uint64_t outputs;
         bool is_motor;
+        bool has_encoder;
         bool is_io_module;
         uint16_t statusword;
         std::string last_error;

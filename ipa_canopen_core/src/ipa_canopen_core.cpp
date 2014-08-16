@@ -256,7 +256,14 @@ namespace canopen
                         break;
                     case 2:
                         // Position Actual Value
-                        tpdo_registers.push_back("606400");
+                        if(devices[CANid].has_encoder)
+                        {
+                            tpdo_registers.push_back("606400");
+                        }
+                        else
+                        {
+                            tpdo_registers.push_back("606200");
+                        }
                         tpdo_sizes.push_back(0x20);
 
                         // Velocity Actual Value
