@@ -1195,8 +1195,8 @@ namespace canopen
 
     void makeRPDOMapping(uint8_t id, int object, std::vector<std::string> registers, std::vector<int> sizes , u_int8_t sync_type)
     {
-        int ext_counter=0;
-        for(int counter=0; counter < registers.size();counter++)
+        int counter;
+        for(counter=0; counter < registers.size();counter++)
         {
             int index_data;
 
@@ -1206,12 +1206,11 @@ namespace canopen
 
             int32_t data = (sizes[counter]) + (index_data << 8);
             sendSDO(id, SDOkey(RPDO_map.index + object, counter + 1), data);
-
-            ext_counter++;
         }
 
         sendSDO(id, SDOkey(RPDO.index+object,0x02), u_int8_t(sync_type));
-        sendSDO(id, SDOkey(RPDO_map.index+object,0x00), uint8_t(ext_counter));
+        std::cout << std::hex << "Mapping " << counter << " objects at CANid " << (int)id << " to RPDO" << object + 1 << std::endl;
+        sendSDO(id, SDOkey(RPDO_map.index+object,0x00), uint8_t(counter));
     }
 
     void enableRPDO(uint8_t id, int object)
@@ -1283,7 +1282,7 @@ namespace canopen
         }
 
         sendSDO(id, SDOkey(TPDO.index+object,0x02), u_int8_t(sync_type));
-        std::cout << std::hex << "Mapping " << counter << " objects to CANid " << (int)id << " for object " << object + 1 << std::endl;
+        std::cout << std::hex << "Mapping " << counter << " objects at CANid " << (int)id << " to TPDO" << object + 1 << std::endl;
         sendSDO(id, SDOkey(TPDO_map.index+object,0x00), uint8_t(counter));
     }
 
