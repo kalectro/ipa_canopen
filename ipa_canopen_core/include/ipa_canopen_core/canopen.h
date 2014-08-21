@@ -915,7 +915,7 @@ namespace canopen{
         {0x7F, "Pre-Operational"}
     };
 
-    std::map<uint32_t, std::string> sdo_abort_messages =
+    const std::map<uint32_t, const std::string> sdo_abort_messages =
     {
         {0x06040042, "The number and length of the objects to be mapped would exceed PDO length."},
         {0x05030000, "Toggle bit not alternated."},
@@ -948,7 +948,7 @@ namespace canopen{
         {0x08000021,"Data cannot be transferred or stored to the application because of local control."},
         {0x08000022,"Data cannot be transferred or stored to the application because of the present device state."},
         {0x08000023,"Object dictionary dynamic generation fails or no object dictionary is present (e.g. object dictionary is generated from file and generation fails because of an file error)."},
-        {0x08000024,"No data available￼"}
+        {0x08000024,"No data available."}
     };
 
     static const char * const modesDisplay[] =

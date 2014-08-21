@@ -1135,7 +1135,12 @@ namespace canopen
         {
             response_sdo.aborted = true;
             uint32_t abort_code = data[4] + (data[5] << 8) + (data[6] << 16) + (data[7] << 24);
-            std::string error_message = sdo_abort_messages[abort_code];
+            auto iter = sdo_abort_messages.find(abort_code);
+            std::string error_message = "SDO Abort";
+	     if ( iter != sdo_abort_messages.end())
+            {
+                error_message = (*iter).second;
+            }
             std::cout << std::hex << "SDO abort from CAN id " << (int)CANid << " for SDO 0x" << sdo_id << "s" << (int)sdo_id_sub << " with the following error message:" << std::endl;
             std::cout << " " << error_message << std::endl;
         }
