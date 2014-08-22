@@ -182,6 +182,7 @@ namespace canopen{
         bool is_io_module;
         uint16_t statusword;
         std::string last_error;
+        uint16_t controlword;
 
         Device() {};
 
@@ -194,6 +195,7 @@ namespace canopen{
             motorState_("START_UP"),
             is_motor(false),
             is_io_module(false),
+            inputs(0), outputs(0),
             nmt_init_(false) {};
 
         Device(uint8_t CANid, std::string name, std::string group, std::string bus):
@@ -208,6 +210,7 @@ namespace canopen{
             motorState_("START_UP"),
             is_motor(false),
             is_io_module(false),
+            inputs(0), outputs(0),
             nmt_init_(false) {};
 
         Device(uint8_t CANid, std::string name, std::string group):
@@ -220,6 +223,7 @@ namespace canopen{
             motorState_("START_UP"),
             is_motor(false),
             is_io_module(false),
+            inputs(0), outputs(0),
             initialized_(false),
             nmt_init_(false) {};
 
@@ -237,6 +241,7 @@ namespace canopen{
             motorState_("START_UP"),
             is_motor(false),
             is_io_module(false),
+            inputs(0), outputs(0),
             initialized_(false),
             nmt_init_(false) {};
 
@@ -965,7 +970,8 @@ namespace canopen{
     const u_int8_t SYNC_TYPE_ASYNCHRONOUS = 0xFF;
 
     void uploadSDO(uint8_t CANid, SDOkey sdo);
-    void controlPDO(uint8_t CANid, u_int16_t control_word);
+    void controlPDO(uint8_t CANid);
+    void sendControlWord(uint8_t CANid, uint16_t target_controlword);
     void processSingleSDO(uint8_t CANid, std::shared_ptr<TPCANRdMsg> message);
     void requestDataBlock1(uint8_t CANid);
     void requestDataBlock2(uint8_t CANid);

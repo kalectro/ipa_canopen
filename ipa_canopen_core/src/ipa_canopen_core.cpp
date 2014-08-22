@@ -251,6 +251,10 @@ namespace canopen
                         rpdo_registers.push_back("604000");
                         rpdo_sizes.push_back(0x10);
 
+                        // Digital Outputs
+                        rpdo_registers.push_back("60FE01");
+                        rpdo_sizes.push_back(0x20);
+
                         tsync_type = SYNC_TYPE_ASYNCHRONOUS;
                         rsync_type = SYNC_TYPE_ASYNCHRONOUS;
                         break;
@@ -402,46 +406,46 @@ namespace canopen
             {
                 if(!devices[CANid].getFault())
                 {
-                    canopen::controlPDO(CANid, canopen::CONTROLWORD_FAULT_RESET_0);
+                    canopen::sendControlWord(CANid, canopen::CONTROLWORD_FAULT_RESET_0);
                 }
                 else
                 {
-                    canopen::controlPDO(CANid, canopen::CONTROLWORD_FAULT_RESET_1);
+                    canopen::sendControlWord(CANid, canopen::CONTROLWORD_FAULT_RESET_1);
                 }
             }
             else if(devices[CANid].getMotorState() == MS_NOT_READY_TO_SWITCH_ON)
             {
                 canopen::uploadSDO(CANid, canopen::STATUSWORD);
-                canopen::controlPDO(CANid, canopen::CONTROLWORD_SHUTDOWN);
+                canopen::sendControlWord(CANid, canopen::CONTROLWORD_SHUTDOWN);
             }
             else if(devices[CANid].getMotorState() == MS_SWITCHED_ON_DISABLED)
             {
-                canopen::controlPDO(CANid, canopen::CONTROLWORD_SHUTDOWN);
+                canopen::sendControlWord(CANid, canopen::CONTROLWORD_SHUTDOWN);
             }
             else if(devices[CANid].getMotorState() == MS_READY_TO_SWITCH_ON)
             {
                 if (targetState == MS_SWITCHED_ON_DISABLED)
                 {
-                    canopen::controlPDO(CANid, canopen::CONTROL_WORD_DISABLE_VOLTAGE);
+                    canopen::sendControlWord(CANid, canopen::CONTROL_WORD_DISABLE_VOLTAGE);
                 }
                 else
                 {
-                    canopen::controlPDO(CANid, canopen::CONTROLWORD_SWITCH_ON);
+                    canopen::sendControlWord(CANid, canopen::CONTROLWORD_SWITCH_ON);
                 }
             }
             else if(devices[CANid].getMotorState() == MS_SWITCHED_ON)
             {
                 if (targetState == MS_SWITCHED_ON_DISABLED)
                 {
-                    canopen::controlPDO(CANid, canopen::CONTROL_WORD_DISABLE_VOLTAGE);
+                    canopen::sendControlWord(CANid, canopen::CONTROL_WORD_DISABLE_VOLTAGE);
                 }
                 else if (targetState == MS_READY_TO_SWITCH_ON)
                 {
-                    canopen::controlPDO(CANid, canopen::CONTROLWORD_SHUTDOWN);
+                    canopen::sendControlWord(CANid, canopen::CONTROLWORD_SHUTDOWN);
                 }
                 else
                 {
-                    canopen::controlPDO(CANid, canopen::CONTROLWORD_ENABLE_OPERATION);
+                    canopen::sendControlWord(CANid, canopen::CONTROLWORD_ENABLE_OPERATION);
                 }
             }
             else if(devices[CANid].getMotorState() == MS_OPERATION_ENABLED)
@@ -502,15 +506,25 @@ namespace canopen
         CAN_Write_debug(h, &msg);
     }
 
-    void controlPDO(uint8_t CANid, u_int16_t control_word)
+    void sendControlWord(uint8_t CANid, uint16_t target_controlword){
+        devices[CANid].controlword = target_controlword;
+        controlPDO(CANid);
+    }
+
+    void controlPDO(uint8_t CANid)
     {
         TPCANMsg msg;
         std::memset(&msg, 0, sizeof(msg));
         msg.ID = CANid + COB_PDO1_RX;
         msg.MSGTYPE = 0x00;
-        msg.LEN = 2;
-        msg.DATA[0] = control_word;
-        msg.DATA[1] = control_word >> 8;
+        msg.LEN = 6;
+        msg.DATA[0] = devices[CANid].controlword;
+        msg.DATA[1] = devices[CANid].controlword >> 8;
+        msg.DATA[2] = 0;
+        msg.DATA[3] = 0;
+        msg.DATA[4] = devices[CANid].outputs;
+        msg.DATA[5] = devices[CANid].outputs >> 8;
+
         CAN_Write_debug(h, &msg);
     }
 
@@ -678,25 +692,7 @@ namespace canopen
         devices[CANid].statusword = mydata_low + (mydata_high << 8);
         int8_t mode_display = m.Msg.DATA[2];
 
-        uint16_t low_byte, high_byte;
-        low_byte = m.Msg.DATA[3];
-        high_byte = m.Msg.DATA[4];
-        uint16_t limit_switch = low_byte + (high_byte << 8);
-
-        low_byte = m.Msg.DATA[5];
-        high_byte = m.Msg.DATA[6];
-        uint16_t inputs = low_byte + (high_byte << 8);
-
-        bool hardware_limit_positive = limit_switch & 0x02;
-        bool hardware_limit_negative = limit_switch & 0x01;
-        bool input3 = inputs & 0x04;
-        bool input4 = inputs & 0x08;
-
-        devices[CANid].setNegativeLimit(hardware_limit_negative);
-        devices[CANid].setPositiveLimit(hardware_limit_positive);
-        devices[CANid].setInput3(input3);
-        devices[CANid].setInput4(input4);
-
+        devices[CANid].inputs = m.Msg.DATA[5] + (m.Msg.DATA[6] << 8);
         bool ready_switch_on = mydata_low & 0x01;
         bool switched_on = mydata_low & 0x02;
         bool op_enable = mydata_low & 0x04;
