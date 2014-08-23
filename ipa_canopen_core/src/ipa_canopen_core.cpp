@@ -799,34 +799,32 @@ namespace canopen
 
     void EMCY_incoming(uint8_t CANid, const TPCANRdMsg m)
     {
-        std::stringstream error_stream;
-
         uint16_t error_code =  m.Msg.DATA[0] +  m.Msg.DATA[1] << 8;
         uint8_t error_class = m.Msg.DATA[2];
         uint8_t error_number = m.Msg.DATA[3];
 
 
-        error_stream << std::hex << "ERROR: " << NanotecErrorNumber[error_number] << " ERROR CATEGORIES: ";
+        std::cout << std::hex << "ERROR from CANid " << (int)CANid << ": " << NanotecErrorNumber[error_number] << "   ERROR CATEGORIES: ";
 
         if ( error_class & EMC_k_1001_GENERIC )
-            error_stream << "generic ";
+            std::cout << "generic ";
         if ( error_class & EMC_k_1001_CURRENT)
-            error_stream << "current ";
+            std::cout << "current ";
         if ( error_class & EMC_k_1001_VOLTAGE )
-            error_stream << "voltage ";
+            std::cout << "voltage ";
         if ( error_class & EMC_k_1001_TEMPERATURE )
-            error_stream << "temperature ";
+            std::cout << "temperature ";
         if ( error_class & EMC_k_1001_COMMUNICATION )
-            error_stream << "communication ";
+            std::cout << "communication ";
         if ( error_class & EMC_k_1001_DEV_PROF_SPEC )
-            error_stream << "device profile specific ";
+            std::cout << "device profile specific ";
         if ( error_class & EMC_k_1001_RESERVED )
-            error_stream << "reserved ";
+            std::cout << "reserved ";
         if ( error_class & EMC_k_1001_MANUFACTURER)
-            error_stream << "manufacturer specific ";
+            std::cout << "manufacturer specific ";
 
-        std::cout << error_stream << std::endl;
-        devices[CANid].last_error = error_stream.str();
+        std::cout << std::endl;
+        //devices[CANid].last_error = error_stream.str();
     }
 
     void initListenerThread(std::function<void ()> const& listener)
@@ -1133,7 +1131,7 @@ namespace canopen
             uint32_t abort_code = data[4] + (data[5] << 8) + (data[6] << 16) + (data[7] << 24);
             auto iter = sdo_abort_messages.find(abort_code);
             std::string error_message = "SDO Abort";
-	     if ( iter != sdo_abort_messages.end())
+            if ( iter != sdo_abort_messages.end())
             {
                 error_message = (*iter).second;
             }
