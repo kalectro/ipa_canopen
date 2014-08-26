@@ -255,6 +255,10 @@ namespace canopen
                         rpdo_registers.push_back("60FE01");
                         rpdo_sizes.push_back(0x20);
 
+                        // Mode of operation
+                        rpdo_registers.push_back("606000");
+                        rpdo_sizes.push_back(0x08);
+
                         tsync_type = SYNC_TYPE_ASYNCHRONOUS;
                         rsync_type = SYNC_TYPE_ASYNCHRONOUS;
                         break;
@@ -372,8 +376,9 @@ namespace canopen
             setMotorState(CANid, canopen::MS_SWITCHED_ON);
         }
 
-        std::cout << std::dec << "setting mode to " << (int)targetMode << std::endl;
-        sendSDO(CANid, MODES_OF_OPERATION, targetMode);
+        std::cout << std::dec << "setting mode to " << modesDisplay[targetMode] << std::endl;
+        devices[CANid].operation_mode = targetMode;
+        controlPDO(CANid);
         // check operation mode until correct mode is returned
         while (devices[CANid].getCurrentModeofOperation() != targetMode)
         {
@@ -517,13 +522,14 @@ namespace canopen
         std::memset(&msg, 0, sizeof(msg));
         msg.ID = CANid + COB_PDO1_RX;
         msg.MSGTYPE = 0x00;
-        msg.LEN = 6;
+        msg.LEN = 7;
         msg.DATA[0] = devices[CANid].controlword;
         msg.DATA[1] = devices[CANid].controlword >> 8;
         msg.DATA[2] = 0;
         msg.DATA[3] = 0;
         msg.DATA[4] = devices[CANid].outputs;
         msg.DATA[5] = devices[CANid].outputs >> 8;
+        msg.DATA[6] = devices[CANid].operation_mode;
 
         CAN_Write_debug(h, &msg);
     }

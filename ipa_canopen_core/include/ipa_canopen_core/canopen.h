@@ -183,6 +183,7 @@ namespace canopen{
         uint16_t statusword;
         std::string last_error;
         uint16_t controlword;
+        int8_t operation_mode;
 
         Device() {};
 
@@ -196,6 +197,7 @@ namespace canopen{
             is_motor(false),
             is_io_module(false),
             inputs(0), outputs(0),
+            operation_mode(0),
             nmt_init_(false) {};
 
         Device(uint8_t CANid, std::string name, std::string group, std::string bus):
@@ -211,6 +213,7 @@ namespace canopen{
             is_motor(false),
             is_io_module(false),
             inputs(0), outputs(0),
+            operation_mode(0),
             nmt_init_(false) {};
 
         Device(uint8_t CANid, std::string name, std::string group):
@@ -224,6 +227,7 @@ namespace canopen{
             is_motor(false),
             is_io_module(false),
             inputs(0), outputs(0),
+            operation_mode(0),
             initialized_(false),
             nmt_init_(false) {};
 
@@ -242,6 +246,7 @@ namespace canopen{
             is_motor(false),
             is_io_module(false),
             inputs(0), outputs(0),
+            operation_mode(0),
             initialized_(false),
             nmt_init_(false) {};
 
