@@ -420,7 +420,6 @@ namespace canopen
             }
             else if(devices[CANid].getMotorState() == MS_NOT_READY_TO_SWITCH_ON)
             {
-                canopen::uploadSDO(CANid, canopen::STATUSWORD);
                 canopen::sendControlWord(CANid, canopen::CONTROLWORD_SHUTDOWN);
             }
             else if(devices[CANid].getMotorState() == MS_SWITCHED_ON_DISABLED)
@@ -457,17 +456,18 @@ namespace canopen
             {
                 if (targetState == MS_SWITCHED_ON_DISABLED)
                 {
-                    sendSDO(CANid, CONTROLWORD, CONTROL_WORD_DISABLE_VOLTAGE);
+                    canopen::sendControlWord(CANid, canopen::CONTROL_WORD_DISABLE_VOLTAGE);
                 }
                 else if (targetState == MS_READY_TO_SWITCH_ON)
                 {
-                    sendSDO(CANid, CONTROLWORD, CONTROLWORD_SHUTDOWN);
+                    canopen::sendControlWord(CANid, canopen::CONTROLWORD_SHUTDOWN);
                 }
                 else
                 {
-                    sendSDO(CANid, CONTROLWORD, CONTROLWORD_DISABLE_OPERATION);
+                    canopen::sendControlWord(CANid, canopen::CONTROLWORD_DISABLE_OPERATION);
                 }
             }
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));  // give motor some time to allow changing state
         }
         return true;
     }

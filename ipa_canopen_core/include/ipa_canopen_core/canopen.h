@@ -193,61 +193,12 @@ namespace canopen{
             actualPos_(0),
             initialized_(false),
             NMTState_("START_UP"),
-            motorState_("START_UP"),
+            motorState_("SWITCHED_ON_DISABLED"),
             is_motor(false),
             is_io_module(false),
             inputs(0), outputs(0),
             operation_mode(0),
-            nmt_init_(false) {};
-
-        Device(uint8_t CANid, std::string name, std::string group, std::string bus):
-            CANid_(CANid),
-            name_(name),
-            group_(group),
-            deviceFile_(bus),
-            actualVel_(0),
-            actualPos_(0),
-            initialized_(false),
-            NMTState_("START_UP"),
-            motorState_("START_UP"),
-            is_motor(false),
-            is_io_module(false),
-            inputs(0), outputs(0),
-            operation_mode(0),
-            nmt_init_(false) {};
-
-        Device(uint8_t CANid, std::string name, std::string group):
-            CANid_(CANid),
-            name_(name),
-            group_(group),
-            actualVel_(0),
-            actualPos_(0),
-            NMTState_("START_UP"),
-            motorState_("START_UP"),
-            is_motor(false),
-            is_io_module(false),
-            inputs(0), outputs(0),
-            operation_mode(0),
-            initialized_(false),
-            nmt_init_(false) {};
-
-
-        Device(uint8_t CANid, std::string name, std::string group, std::string bus, double conversion_factor, double offsets):
-            CANid_(CANid),
-            name_(name),
-            group_(group),
-            deviceFile_(bus),
-            conversion_factor_(conversion_factor),
-            offset_(offsets),
-            actualVel_(0),
-            actualPos_(0),
-            NMTState_("START_UP"),
-            motorState_("START_UP"),
-            is_motor(false),
-            is_io_module(false),
-            inputs(0), outputs(0),
-            operation_mode(0),
-            initialized_(false),
+            controlword(0),
             nmt_init_(false) {};
 
         bool getNMTInit(){
