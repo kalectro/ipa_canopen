@@ -715,8 +715,8 @@ namespace canopen{
     /***************************************************************/
 
     void setNMTState(uint8_t CANid, std::string targetState);
-    bool setMotorState(uint8_t CANid, std::string targetState, double timeout = 5.0);
-    bool setOperationMode(uint8_t CANid, int8_t targetMode, double timeout = 5.0);
+    bool setMotorState(uint8_t CANid, std::string targetState, double timeout = 10.0);
+    bool setOperationMode(uint8_t CANid, int8_t targetMode, double timeout = 10.0);
 
     void makeRPDOMapping(uint8_t id, int object, std::vector<std::string> registers, std::vector<int> sizes, u_int8_t sync_type);
     void disableRPDO(uint8_t id, int object);
@@ -959,6 +959,25 @@ namespace canopen{
         {0x08000022,"Data cannot be transferred or stored to the application because of the present device state."},
         {0x08000023,"Object dictionary dynamic generation fails or no object dictionary is present (e.g. object dictionary is generated from file and generation fails because of an file error)."},
         {0x08000024,"No data available."}
+    };
+
+    const std::map<uint16_t, const std::string> error_codes =
+    {
+        {0x1000, "Generic Error"},
+        {0x2310, "Output Current too high"},
+        {0x3210, "Over/Undervoltage"},
+        {0x4200, "Temperature Error"},
+        {0x7305, "Incremental Encoder 1 broken"},
+        {0x8000, "CAN supervision error"},
+        {0x8100, "Message Lost"},
+        {0x8110, "CAN overrun, message lost"},
+        {0x8120, "CAN in Error passive mode"},
+        {0x8130, "Lifeguard or Heartbeat error"},
+        {0x8140, "Recover from bus off"},
+        {0x8210, "PDO not processed (length error)"},
+        {0x8220, "PDO length exceeded"},
+        {0x8611, "Following Error too high"},
+        {0x8612, "Position Limit exceeded"}
     };
 
     static const char * const modesDisplay[] =

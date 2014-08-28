@@ -829,6 +829,17 @@ namespace canopen
         if ( error_class & EMC_k_1001_MANUFACTURER)
             std::cout << "manufacturer specific ";
 
+        auto iter = error_codes.find(error_code);
+        std::cout << " Error Code: ";
+        if ( iter != error_codes.end())
+        {
+            std::cout << (*iter).second;
+        }
+        else
+        {
+            std::cout << std::hex << error_code;
+        }
+
         std::cout << std::endl;
         //devices[CANid].last_error = error_stream.str();
     }
