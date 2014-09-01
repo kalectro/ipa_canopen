@@ -181,9 +181,6 @@ namespace canopen
             std::chrono::duration<double> elapsed_seconds;
 
             canopen::initDeviceManagerThread(chainName,canopen::deviceManager);
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
-
-            std::cout << "Initializing " << chainName << std::endl;
 
             canopen::deviceGroups[chainName].setFirstInit(false);
 
