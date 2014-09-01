@@ -467,6 +467,11 @@ namespace canopen
                     canopen::sendControlWord(CANid, canopen::CONTROLWORD_DISABLE_OPERATION);
                 }
             }
+            else
+            {
+                std::cout << "I do not know how to change from state " << devices[CANid].getMotorState() << " to state " << targetState << std::endl;
+                return false;
+            }
             std::this_thread::sleep_for(std::chrono::milliseconds(10));  // give motor some time to allow changing state
         }
         return true;
