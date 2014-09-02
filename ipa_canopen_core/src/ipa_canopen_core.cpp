@@ -1301,7 +1301,7 @@ std::cout << "Setting motor " << (int)CANid << " state to " << targetState << st
 
         sendSDO(id, SDOkey(TPDO.index+object,0x02), u_int8_t(sync_type));
         std::cout << std::hex << "Mapping " << counter << " objects at CANid " << (int)id << " to TPDO" << object + 1 << std::endl;
-        sendSDO(id, SDOkey(TPDO.index+object,0x03), 100);
+        sendSDO(id, SDOkey(TPDO.index+object,0x03), uint16_t(100));
         sendSDO(id, SDOkey(TPDO_map.index+object,0x00), uint8_t(counter));
     }
 
