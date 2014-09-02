@@ -129,18 +129,18 @@ namespace canopen
                  std::vector<std::string> tpdo_registers, std::vector<int> tpdo_sizes, u_int8_t tsync_type,
                  std::vector<std::string> rpdo_registers, std::vector<int> rpdo_sizes, u_int8_t rsync_type)
     {
+        // clear all mappings for given pdo id
+        canopen::disableTPDO(id, pdo_id-1);
+        canopen::clearTPDOMapping(id, pdo_id-1);
         if(!tpdo_registers.empty())
         {
-            // clear all mappings for given pdo id
-            canopen::disableTPDO(id, pdo_id-1);
-            canopen::clearTPDOMapping(id, pdo_id-1);
             canopen::makeTPDOMapping(id, pdo_id-1, tpdo_registers, tpdo_sizes, tsync_type);
             canopen::enableTPDO(id, pdo_id-1);
         }
+        canopen::disableRPDO(id, pdo_id-1);
+        canopen::clearRPDOMapping(id, pdo_id-1);
         if(!rpdo_registers.empty())
         {
-            canopen::disableRPDO(id, pdo_id-1);
-            canopen::clearRPDOMapping(id, pdo_id-1);
             canopen::makeRPDOMapping(id,pdo_id-1, rpdo_registers, rpdo_sizes, rsync_type);
             canopen::enableRPDO(id, pdo_id-1);
         }

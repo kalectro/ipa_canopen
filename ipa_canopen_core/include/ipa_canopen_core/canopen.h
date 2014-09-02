@@ -818,9 +818,6 @@ namespace canopen{
     const int RPDO3_msg = 0x400;
     const int RPDO4_msg = 0x500;
 
-    const int TSDO = 0x580;
-    const int RSDO = 0x600;
-
     //TPDO PARAMETERS
     const SDOkey TPDO(0x1800, 0x0);
 
