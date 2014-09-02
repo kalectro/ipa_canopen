@@ -137,10 +137,10 @@ namespace canopen
             canopen::makeTPDOMapping(id, pdo_id-1, tpdo_registers, tpdo_sizes, tsync_type);
             canopen::enableTPDO(id, pdo_id-1);
         }
-        canopen::disableRPDO(id, pdo_id-1);
-        canopen::clearRPDOMapping(id, pdo_id-1);
         if(!rpdo_registers.empty())
         {
+            canopen::disableRPDO(id, pdo_id-1);
+            canopen::clearRPDOMapping(id, pdo_id-1);
             canopen::makeRPDOMapping(id,pdo_id-1, rpdo_registers, rpdo_sizes, rsync_type);
             canopen::enableRPDO(id, pdo_id-1);
         }
