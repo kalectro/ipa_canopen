@@ -369,11 +369,11 @@ namespace canopen
                 devices[CANid].getMotorState() != MS_SWITCHED_ON_DISABLED &&
                 devices[CANid].getMotorState() != MS_SWITCHED_ON)
         {
-            std::cout << "Found motor in state " << devices[CANid].getMotorState() << ", adjusting to SWITCHED_ON" << std::endl;
+            std::cout << "Found motor " << (int)CANid << " in state " << devices[CANid].getMotorState() << ", adjusting to SWITCHED_ON" << std::endl;
             setMotorState(CANid, canopen::MS_SWITCHED_ON);
         }
 
-        std::cout << std::dec << "setting mode to " << modesDisplay[targetMode] << std::endl;
+        std::cout << std::dec << "setting mode of motor " << (int)CANid << " to " << modesDisplay[targetMode] << std::endl;
         devices[CANid].operation_mode = targetMode;
         controlPDO(CANid);
         // check operation mode until correct mode is returned
@@ -396,7 +396,7 @@ namespace canopen
     bool setMotorState(uint8_t CANid, std::string targetState, double timeout)
     {
         start = std::chrono::high_resolution_clock::now();
-
+std::cout << "Setting motor " << (int)CANid << " state to " << targetState << std::endl;
         while (devices[CANid].getMotorState() != targetState)
         {
             end = std::chrono::high_resolution_clock::now();
