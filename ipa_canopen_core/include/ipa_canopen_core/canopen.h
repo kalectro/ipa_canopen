@@ -142,8 +142,6 @@ namespace canopen{
         std::chrono::seconds timeStamp_sec_;
         std::chrono::nanoseconds timeStamp_nsec_;
 
-        int8_t modes_of_operation_display_;
-
         bool hardware_limit_positive_;
         bool hardware_limit_negative_;
         bool input3_, input4_;
@@ -183,7 +181,8 @@ namespace canopen{
         uint16_t statusword;
         std::string last_error;
         uint16_t controlword;
-        int8_t operation_mode;
+        int8_t operation_mode_target;
+        int8_t actual_operation_mode;
 
         Device() {};
 
@@ -197,7 +196,8 @@ namespace canopen{
             is_motor(false),
             is_io_module(false),
             inputs(0), outputs(0),
-            operation_mode(0),
+            operation_mode_target(0),
+            actual_operation_mode(0),
             controlword(0),
             nmt_init_(false) {};
 
@@ -347,12 +347,6 @@ namespace canopen{
 
         bool getFault(){
             return fault_;
-        }
-
-
-        int8_t getCurrentModeofOperation()
-        {
-            return modes_of_operation_display_;
         }
 
         bool getIPMode(){
@@ -515,11 +509,6 @@ namespace canopen{
 
         void setFault(bool fault){
             fault_ = fault;
-        }
-
-        void setCurrentModeofOperation(int8_t mode_display)
-        {
-            modes_of_operation_display_ = mode_display;
         }
 
         void setIPMode(bool ip_mode){
@@ -928,10 +917,19 @@ namespace canopen{
         {0x8612, "Position Limit exceeded"}
     };
 
-    static const char * const modesDisplay[] =
-    {"NO_MODE", "PROFILE_POSITION_MODE", "VELOCITY", "PROFILE_VELOCITY_MODE",
-     "TORQUE_PROFILED_MODE", "RESERVED", "HOMING_MODE", "INTERPOLATED_POSITION_MODE",
-     "CYCLIC_SYNCHRONOUS_POSITION"};
+    const std::map<int8_t, const std::string> modesDisplay =
+    {
+        {-2, "Auto-Setup"},
+        {0, "NO_MODE"},
+        {1, "PROFILE_POSITION_MODE"},
+        {2, "VELOCITY"},
+        {3, "PROFILE_VELOCITY_MODE"},
+        {4, "TORQUE_PROFILED_MODE"},
+        {5, "MODE_5"},
+        {6, "HOMING_MODE"},
+        {7, "INTERPOLATED_POSITION_MODE"},
+        {8, "CYCLIC_SYNCHRONOUS_POSITION"}
+    };
 
     const int8_t IP_TIME_INDEX_MILLISECONDS = 0xFD;
     const int8_t IP_TIME_INDEX_HUNDREDMICROSECONDS = 0xFC;

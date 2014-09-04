@@ -373,11 +373,11 @@ namespace canopen
             setMotorState(CANid, canopen::MS_SWITCHED_ON);
         }
 
-        std::cout << std::dec << "setting mode of motor " << (int)CANid << " to " << modesDisplay[targetMode] << std::endl;
-        devices[CANid].operation_mode = targetMode;
+        std::cout << std::dec << "setting mode of motor " << (int)CANid << " to " << modesDisplay.find(targetMode)->second << std::endl;
+        devices[CANid].operation_mode_target = targetMode;
         controlPDO(CANid);
         // check operation mode until correct mode is returned
-        while (devices[CANid].getCurrentModeofOperation() != targetMode)
+        while (devices[CANid].actual_operation_mode != targetMode)
         {
             // timeout check
             time_end = std::chrono::high_resolution_clock::now();
@@ -396,7 +396,7 @@ namespace canopen
     bool setMotorState(uint8_t CANid, std::string targetState, double timeout)
     {
         start = std::chrono::high_resolution_clock::now();
-std::cout << "Setting motor " << (int)CANid << " state to " << targetState << std::endl;
+        std::cout << "Setting state of motor " << (int)CANid << " to " << targetState << std::endl;
         while (devices[CANid].getMotorState() != targetState)
         {
             end = std::chrono::high_resolution_clock::now();
@@ -531,7 +531,9 @@ std::cout << "Setting motor " << (int)CANid << " state to " << targetState << st
         msg.DATA[3] = 0;
         msg.DATA[4] = devices[CANid].outputs;
         msg.DATA[5] = devices[CANid].outputs >> 8;
-        msg.DATA[6] = devices[CANid].operation_mode;
+        msg.DATA[6] = devices[CANid].operation_mode_target;
+
+        //std::cout << "controlPDO: controlword 0x" << std::hex << devices[CANid].controlword << "  operation_mode " << (int)devices[CANid].operation_mode << std::endl;
 
         CAN_Write_debug(h, &msg);
     }
@@ -781,7 +783,7 @@ std::cout << "Setting motor " << (int)CANid << " state to " << targetState << st
         devices[CANid].setReadySwitchON(ready_switch_on);
         devices[CANid].setSwitchON(switched_on);
 
-        devices[CANid].setCurrentModeofOperation(mode_display);
+        devices[CANid].actual_operation_mode = mode_display;
     }
 
     void TPDO2_incoming_motors(uint8_t CANid, const TPCANRdMsg m)
