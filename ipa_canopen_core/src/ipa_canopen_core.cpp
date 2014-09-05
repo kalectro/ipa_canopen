@@ -809,7 +809,7 @@ namespace canopen
 
     void EMCY_incoming(uint8_t CANid, const TPCANRdMsg m)
     {
-        uint16_t error_code =  m.Msg.DATA[0] +  m.Msg.DATA[1] << 8;
+        uint16_t error_code =  m.Msg.DATA[0] +  (m.Msg.DATA[1] << 8);
         uint8_t error_class = m.Msg.DATA[2];
         uint8_t error_number = m.Msg.DATA[3];
 
@@ -837,7 +837,7 @@ namespace canopen
         std::cout << " Error Code: ";
         if ( iter != error_codes.end())
         {
-            std::cout << (*iter).second;
+            std::cout << iter->second;
         }
         else
         {
