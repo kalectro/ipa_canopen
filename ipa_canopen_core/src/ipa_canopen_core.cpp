@@ -148,6 +148,8 @@ namespace canopen
 
     bool init(std::string deviceFile, std::string chainName, uint8_t CANid, uint8_t max_pdo_channels)
     {
+        devices[CANid].was_homed = false;
+
         if(canopen::atFirstInit)
         {
             canopen::atFirstInit = false;

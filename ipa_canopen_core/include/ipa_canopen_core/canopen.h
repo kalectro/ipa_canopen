@@ -183,6 +183,7 @@ namespace canopen{
         uint16_t controlword;
         int8_t operation_mode_target;
         int8_t actual_operation_mode;
+        bool was_homed;
 
         Device() {};
 
@@ -199,6 +200,7 @@ namespace canopen{
             operation_mode_target(0),
             actual_operation_mode(0),
             controlword(0),
+            was_homed(false),
             nmt_init_(false) {};
 
         bool getNMTInit(){
