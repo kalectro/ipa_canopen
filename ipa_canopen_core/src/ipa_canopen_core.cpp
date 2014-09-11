@@ -722,52 +722,26 @@ namespace canopen
         bool op_specific1 = mydata_high & 0x20;
         bool man_specific1 = mydata_high & 0x40;
         bool man_specific2 = mydata_high & 0x80;
-        bool ip_mode = ready_switch_on & switched_on & op_enable & volt_enable;
 
-        if(!ready_switch_on)
+        // check motor state by bit masking statusword
+        switch(devices[CANid].statusword & 0b1101111)
         {
-            if(fault)
-            {
-                devices[CANid].setMotorState(canopen::MS_FAULT);
-            }
-            else if(switch_on_disabled)
-            {
-                devices[CANid].setMotorState(canopen::MS_SWITCHED_ON_DISABLED);
-            }
-            else
-                devices[CANid].setMotorState(canopen::MS_NOT_READY_TO_SWITCH_ON);
+            case 0b0000000: // fall through
+            case 0b0100000: devices[CANid].setMotorState(MS_NOT_READY_TO_SWITCH_ON); break;
+            case 0b1000000: // fall through
+            case 0b1100000: devices[CANid].setMotorState(MS_SWITCHED_ON_DISABLED); break;
+            case 0b0100001: devices[CANid].setMotorState(MS_READY_TO_SWITCH_ON); break;
+            case 0b0100011: devices[CANid].setMotorState(MS_SWITCHED_ON); break;
+            case 0b0100111: devices[CANid].setMotorState(MS_OPERATION_ENABLED); break;
+            case 0b0000111: devices[CANid].setMotorState(MS_QUICK_STOP_ACTIVE); break;
+            case 0b0001111: // fall through
+            case 0b0101111: devices[CANid].setMotorState(MS_FAULT_REACTION_ACTIVE); break;
+            case 0b0001000: // fall through
+            case 0b0101000: devices[CANid].setMotorState(MS_FAULT); break;
+            default: std::cout << "UNKNOWN MOTOR STATE FROM MOTOR " << (int)CANid << std::endl;
         }
-
-        else
-        {
-            if(switched_on)
-            {
-                if(op_enable)
-                {
-
-                    //if(volt_enable)
-                    // {
-                    devices[CANid].setMotorState(canopen::MS_OPERATION_ENABLED);
-                    // }
-
-                }
-                else
-                    devices[CANid].setMotorState(canopen::MS_SWITCHED_ON);
-            }
-            else if(!quick_stop)
-                devices[CANid].setMotorState(canopen::MS_QUICK_STOP_ACTIVE);
-
-            else
-                devices[CANid].setMotorState(canopen::MS_READY_TO_SWITCH_ON);
-
-        }
-
-        if(fault & op_enable & switched_on & ready_switch_on)
-            devices[CANid].setMotorState(canopen::MS_FAULT_REACTION_ACTIVE);
-
 
         devices[CANid].setFault(fault);
-        devices[CANid].setIPMode(ip_mode);
         devices[CANid].setHoming(op_specific);
         devices[CANid].setOpSpec0(op_specific);
         devices[CANid].setOpSpec1(op_specific1);
