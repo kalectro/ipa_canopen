@@ -119,7 +119,6 @@ namespace canopen{
         double conversion_factor_;
         double offset_;
         std::string NMTState_;
-        std::string motorState_;
         std::string deviceFile_;
         std::string name_;
         std::string group_;
@@ -183,6 +182,7 @@ namespace canopen{
         int8_t operation_mode_target;
         int8_t actual_operation_mode;
         bool was_homed;
+        std::string motor_state;
 
         Device() {};
 
@@ -192,7 +192,7 @@ namespace canopen{
             actualPos_(0),
             initialized_(false),
             NMTState_("START_UP"),
-            motorState_("SWITCHED_ON_DISABLED"),
+            motor_state("SWITCHED_ON_DISABLED"),
             is_motor(false),
             is_io_module(false),
             inputs(0), outputs(0),
@@ -208,10 +208,6 @@ namespace canopen{
 
         std::string getNMTState(){
             return NMTState_;
-        }
-
-        std::string getMotorState(){
-            return motorState_;
         }
 
         std::vector<char> getManufacturerSWVersion(){
@@ -379,10 +375,6 @@ namespace canopen{
 
         void setActualVel(double vel){
             actualVel_ = vel;
-        }
-
-        void setMotorState(std::string nextState){
-            motorState_ = nextState;
         }
 
         void setManufacturerSWVersion(std::vector<char> ms_version){
@@ -817,10 +809,9 @@ namespace canopen{
     const uint16_t CONTROLWORD_SWITCH_ON = 7;
     const uint16_t CONTROLWORD_ENABLE_OPERATION = 15;
     const uint16_t CONTROLWORD_ENABLE_MOVEMENT = 31;
-    const uint16_t CONTROLWORD_DISABLE_INTERPOLATED = 7;
     const uint16_t CONTROLWORD_DISABLE_OPERATION = 7;
-    const uint16_t CONTROL_WORD_DISABLE_VOLTAGE = 0x7D;
-    const uint16_t CONTROLWORD_FAULT_RESET_0 = 0x00; //0x00;
+    const uint16_t CONTROL_WORD_DISABLE_VOLTAGE = 0;
+    const uint16_t CONTROLWORD_FAULT_RESET_0 = 0x00;
     const uint16_t CONTROLWORD_FAULT_RESET_1 = 0x80;
     const uint16_t CONTROLWORD_HALT = 0x100;
 

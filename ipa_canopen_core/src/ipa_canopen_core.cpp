@@ -367,11 +367,11 @@ namespace canopen
         time_start = std::chrono::high_resolution_clock::now();
 
         // check if motor is in a legitimate state to change operation mode
-        if (    devices[CANid].getMotorState() != MS_READY_TO_SWITCH_ON &&
-                devices[CANid].getMotorState() != MS_SWITCHED_ON_DISABLED &&
-                devices[CANid].getMotorState() != MS_SWITCHED_ON)
+        if (    devices[CANid].motor_state != MS_READY_TO_SWITCH_ON &&
+                devices[CANid].motor_state != MS_SWITCHED_ON_DISABLED &&
+                devices[CANid].motor_state != MS_SWITCHED_ON)
         {
-            std::cout << "Found motor " << (int)CANid << " in state " << devices[CANid].getMotorState() << ", adjusting to SWITCHED_ON" << std::endl;
+            std::cout << "Found motor " << (int)CANid << " in state " << devices[CANid].motor_state << ", adjusting to SWITCHED_ON" << std::endl;
             setMotorState(CANid, canopen::MS_SWITCHED_ON);
         }
 
@@ -399,14 +399,14 @@ namespace canopen
     {
         start = std::chrono::high_resolution_clock::now();
         std::cout << "Setting state of motor " << (int)CANid << " to " << targetState << std::endl;
-        while (devices[CANid].getMotorState() != targetState)
+        while (devices[CANid].motor_state != targetState)
         {
             end = std::chrono::high_resolution_clock::now();
             std::chrono::duration<double> elapsed_seconds = end-start;
 
             if(elapsed_seconds.count() > timeout)
                 return false;
-            if(devices[CANid].getMotorState() == MS_FAULT)
+            if(devices[CANid].motor_state == MS_FAULT)
             {
                 if(!devices[CANid].getFault())
                 {
@@ -417,15 +417,15 @@ namespace canopen
                     canopen::sendControlWord(CANid, canopen::CONTROLWORD_FAULT_RESET_1);
                 }
             }
-            else if(devices[CANid].getMotorState() == MS_NOT_READY_TO_SWITCH_ON)
+            else if(devices[CANid].motor_state == MS_NOT_READY_TO_SWITCH_ON)
             {
                 canopen::sendControlWord(CANid, canopen::CONTROLWORD_SHUTDOWN);
             }
-            else if(devices[CANid].getMotorState() == MS_SWITCHED_ON_DISABLED)
+            else if(devices[CANid].motor_state == MS_SWITCHED_ON_DISABLED)
             {
                 canopen::sendControlWord(CANid, canopen::CONTROLWORD_SHUTDOWN);
             }
-            else if(devices[CANid].getMotorState() == MS_READY_TO_SWITCH_ON)
+            else if(devices[CANid].motor_state == MS_READY_TO_SWITCH_ON)
             {
                 if (targetState == MS_SWITCHED_ON_DISABLED)
                 {
@@ -436,7 +436,7 @@ namespace canopen
                     canopen::sendControlWord(CANid, canopen::CONTROLWORD_SWITCH_ON);
                 }
             }
-            else if(devices[CANid].getMotorState() == MS_SWITCHED_ON)
+            else if(devices[CANid].motor_state == MS_SWITCHED_ON)
             {
                 if (targetState == MS_SWITCHED_ON_DISABLED)
                 {
@@ -451,7 +451,7 @@ namespace canopen
                     canopen::sendControlWord(CANid, canopen::CONTROLWORD_ENABLE_OPERATION);
                 }
             }
-            else if(devices[CANid].getMotorState() == MS_OPERATION_ENABLED)
+            else if(devices[CANid].motor_state == MS_OPERATION_ENABLED)
             {
                 if (targetState == MS_SWITCHED_ON_DISABLED)
                 {
@@ -468,7 +468,7 @@ namespace canopen
             }
             else
             {
-                std::cout << "I do not know how to change from state " << devices[CANid].getMotorState() << " to state " << targetState << std::endl;
+                std::cout << "I do not know how to change from state " << devices[CANid].motor_state << " to state " << targetState << std::endl;
                 return false;
             }
             std::this_thread::sleep_for(std::chrono::milliseconds(10));  // give motor some time to allow changing state
@@ -535,7 +535,7 @@ namespace canopen
         msg.DATA[5] = devices[CANid].outputs >> 8;
         msg.DATA[6] = devices[CANid].operation_mode_target;
 
-        //std::cout << "controlPDO: controlword 0x" << std::hex << devices[CANid].controlword << "  operation_mode " << (int)devices[CANid].operation_mode << std::endl;
+        std::cout << "controlPDO: controlword 0x" << std::hex << (int)msg.DATA[1] << (int)msg.DATA[0] << "  operation_mode " << (int)devices[CANid].operation_mode_target << std::endl;
 
         CAN_Write_debug(h, &msg);
     }
@@ -727,17 +727,17 @@ namespace canopen
         switch(devices[CANid].statusword & 0b1101111)
         {
             case 0b0000000: // fall through
-            case 0b0100000: devices[CANid].setMotorState(MS_NOT_READY_TO_SWITCH_ON); break;
+            case 0b0100000: devices[CANid].motor_state = MS_NOT_READY_TO_SWITCH_ON; break;
             case 0b1000000: // fall through
-            case 0b1100000: devices[CANid].setMotorState(MS_SWITCHED_ON_DISABLED); break;
-            case 0b0100001: devices[CANid].setMotorState(MS_READY_TO_SWITCH_ON); break;
-            case 0b0100011: devices[CANid].setMotorState(MS_SWITCHED_ON); break;
-            case 0b0100111: devices[CANid].setMotorState(MS_OPERATION_ENABLED); break;
-            case 0b0000111: devices[CANid].setMotorState(MS_QUICK_STOP_ACTIVE); break;
+            case 0b1100000: devices[CANid].motor_state = MS_SWITCHED_ON_DISABLED; break;
+            case 0b0100001: devices[CANid].motor_state = MS_READY_TO_SWITCH_ON; break;
+            case 0b0100011: devices[CANid].motor_state = MS_SWITCHED_ON; break;
+            case 0b0100111: devices[CANid].motor_state = MS_OPERATION_ENABLED; break;
+            case 0b0000111: devices[CANid].motor_state = MS_QUICK_STOP_ACTIVE; break;
             case 0b0001111: // fall through
-            case 0b0101111: devices[CANid].setMotorState(MS_FAULT_REACTION_ACTIVE); break;
+            case 0b0101111: devices[CANid].motor_state = MS_FAULT_REACTION_ACTIVE; break;
             case 0b0001000: // fall through
-            case 0b0101000: devices[CANid].setMotorState(MS_FAULT); break;
+            case 0b0101000: devices[CANid].motor_state = MS_FAULT; break;
             default: std::cout << "UNKNOWN MOTOR STATE FROM MOTOR " << (int)CANid << std::endl;
         }
 
