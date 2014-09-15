@@ -394,14 +394,13 @@ namespace canopen
                 return false;
             }
         }
-        
+
         return true;
     }
 
     bool setMotorState(uint8_t CANid, std::string targetState, double timeout)
     {
         start = std::chrono::high_resolution_clock::now();
-
         std::cout << "Setting state of motor " << (int)CANid << " to " << targetState << std::endl;
         while (devices[CANid].motor_state != targetState)
         {
@@ -409,7 +408,7 @@ namespace canopen
             std::chrono::duration<double> elapsed_seconds = end-start;
 
             if(elapsed_seconds.count() > timeout)
-                  return false;
+                return false;
             if(devices[CANid].motor_state == MS_FAULT)
             {
                 if(!devices[CANid].getFault())
@@ -469,11 +468,6 @@ namespace canopen
                 {
                     canopen::sendControlWord(CANid, canopen::CONTROLWORD_DISABLE_OPERATION);
                 }
-            }
-            else if(devices[CANid].getMotorState() == MS_QUICK_STOP_ACTIVE)
-            {
-                 std::cout << "Quickstop to CONTROLWORD_ENABLE_OPERATION" << std::endl;
-                 canopen::sendControlWord(CANid, canopen::CONTROLWORD_ENABLE_OPERATION);
             }
             else
             {
