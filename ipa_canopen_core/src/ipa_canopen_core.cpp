@@ -538,8 +538,7 @@ namespace canopen
         msg.DATA[5] = devices[CANid].outputs >> 8;
         msg.DATA[6] = devices[CANid].operation_mode_target;
 
-        // std::cout << "controlPDO: controlword 0x" << std::hex << devices[CANid].controlword << "  operation_mode " << (int)devices[CANid].operation_mode_target << std::endl;
-
+       // std::cout << "controlPDO: controlword 0x" << std::hex << devices[CANid].controlword << "  operation_mode " << (int)devices[CANid].operation_mode_target << std::endl;
         CAN_Write_debug(h, &msg);
     }
 
