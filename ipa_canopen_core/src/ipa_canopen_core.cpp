@@ -78,6 +78,9 @@ namespace canopen
     std::vector<std::thread> managerThreads;
     std::vector<std::string> openDeviceFiles;
     bool atFirstInit=true;
+    SDOanswer requested_sdo;
+    SDOanswer response_sdo;
+
     std::map<SDOkey, std::function<void (uint8_t CANid, BYTE data[8])> > incomingManufacturerDetails { {MANUFACTURERHWVERSION, manufacturer_incoming}, {MANUFACTURERDEVICENAME, manufacturer_incoming}, {MANUFACTURERSOFTWAREVERSION, manufacturer_incoming} };
     std::map<uint16_t, std::function<void (const TPCANRdMsg m)> > incomingPDOHandlers;
     std::map<uint16_t, std::function<void (const TPCANRdMsg m)> > incomingEMCYHandlers;
@@ -535,7 +538,7 @@ namespace canopen
         msg.DATA[5] = devices[CANid].outputs >> 8;
         msg.DATA[6] = devices[CANid].operation_mode_target;
 
-        std::cout << "controlPDO: controlword 0x" << std::hex << (int)msg.DATA[1] << (int)msg.DATA[0] << "  operation_mode " << (int)devices[CANid].operation_mode_target << std::endl;
+        // std::cout << "controlPDO: controlword 0x" << std::hex << devices[CANid].controlword << "  operation_mode " << (int)devices[CANid].operation_mode_target << std::endl;
 
         CAN_Write_debug(h, &msg);
     }
@@ -890,7 +893,7 @@ namespace canopen
             {
                 uint8_t CANid = m.Msg.ID - COB_NODEGUARD;
 
-                std::cout << std::hex << "Received NMT message from CANid " << (int)CANid << ". Current state: " << nmt_state[m.Msg.DATA[0]] << std::endl;
+                std::cout << std::hex << "Received NMT message from CANid " << (int)CANid << ". Current state: " << nmt_state.find(m.Msg.DATA[0])->second << std::endl;
                 std::map<uint8_t,Device>::const_iterator search = devices.find(CANid);
                 if(search != devices.end())
                 {

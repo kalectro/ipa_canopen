@@ -353,6 +353,10 @@ namespace canopen{
             return actualPos_;
         }
 
+        double getActualPosScaled(){
+            return actualPos_ / ticks_per_rad_or_meter * polarity;
+        }
+
         double getActualVel(){
             return actualVel_;
         }
@@ -633,8 +637,8 @@ namespace canopen{
     extern bool atFirstInit;
     extern std::map<uint16_t, std::function<void (const TPCANRdMsg m)> > incomingPDOHandlers;
 
-    SDOanswer requested_sdo;
-    SDOanswer response_sdo;
+    extern SDOanswer requested_sdo;
+    extern SDOanswer response_sdo;
     /***************************************************************/
     //			define state machine functions
     /***************************************************************/
@@ -669,7 +673,6 @@ namespace canopen{
     extern bool sdo_protect;
     extern BYTE protect_msg[];
 
-    extern bool atFirstInit;
     extern bool no_position;
 
     extern std::string operation_mode_param;
@@ -838,7 +841,7 @@ namespace canopen{
     const u_int16_t COB_NODEGUARD = 0x700;
     const u_int16_t COB_MAX = 0x800;
 
-    std::map<uint8_t, std::string> nmt_state =
+    const std::map<uint8_t, const std::string> nmt_state =
     {
         {0x00, "Bootup"},
         {0x04, "Stopped"},
