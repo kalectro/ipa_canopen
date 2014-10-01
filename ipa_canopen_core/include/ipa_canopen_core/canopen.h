@@ -370,7 +370,7 @@ namespace canopen{
         }
 
         double getActualPosScaled(){
-            return actualPos_ / ticks_per_rad_or_meter * polarity;
+            return (double)actualPos_ / (double)ticks_per_rad_or_meter * (double)polarity;
         }
 
         double getActualVel(){
