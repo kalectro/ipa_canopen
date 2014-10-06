@@ -183,8 +183,24 @@ namespace canopen{
         int8_t actual_operation_mode;
         bool was_homed;
         std::string motor_state;
-
-        Device() {};
+        
+        Device() :
+            CANid_(-1),
+            actualVel_(0),
+            actualPos_(0),
+            initialized_(false),
+            NMTState_("START_UP"),
+            motor_state("SWITCHED_ON_DISABLED"),
+            is_motor(false),
+            is_io_module(false),
+            inputs(0), outputs(0),
+            operation_mode_target(0),
+            actual_operation_mode(0),
+            controlword(0),
+            was_homed(false),
+            nmt_init_(false)
+        {
+        }
 
         Device(uint8_t CANid):
             CANid_(CANid),
@@ -354,7 +370,7 @@ namespace canopen{
         }
 
         double getActualPosScaled(){
-            return actualPos_ / ticks_per_rad_or_meter * polarity;
+            return (double)actualPos_ / (double)ticks_per_rad_or_meter * (double)polarity;
         }
 
         double getActualVel(){
@@ -813,7 +829,7 @@ namespace canopen{
     const uint16_t CONTROLWORD_ENABLE_OPERATION = 15;
     const uint16_t CONTROLWORD_ENABLE_MOVEMENT = 31;
     const uint16_t CONTROLWORD_DISABLE_OPERATION = 7;
-    const uint16_t CONTROL_WORD_DISABLE_VOLTAGE = 0;
+    const uint16_t CONTROL_WORD_DISABLE_VOLTAGE = 0x7D;
     const uint16_t CONTROLWORD_FAULT_RESET_0 = 0x00;
     const uint16_t CONTROLWORD_FAULT_RESET_1 = 0x80;
     const uint16_t CONTROLWORD_HALT = 0x100;
