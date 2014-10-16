@@ -961,7 +961,7 @@ namespace canopen{
 
     void RPDO2_outgoing(uint8_t CANid, int32_t target_position, uint32_t max_velocity);
     void RPDO4_outgoing(uint8_t CANid, int16_t target_torque);
-    void TPDO1_incoming_motors(uint8_t CANid, const TPCANRdMsg m);
+    // void TPDO1_incoming_motors(uint8_t CANid, const TPCANRdMsg m);
     void TPDO2_incoming_motors(uint8_t CANid, const TPCANRdMsg m);
     void TPDO1_incoming_io(uint8_t CANid, const TPCANRdMsg m);
     void EMCY_incoming(uint8_t CANid, const TPCANRdMsg m);
