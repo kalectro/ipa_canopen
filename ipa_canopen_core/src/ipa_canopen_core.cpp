@@ -401,11 +401,11 @@ namespace canopen
                 devices[CANid].motor_state != MS_SWITCHED_ON_DISABLED &&
                 devices[CANid].motor_state != MS_SWITCHED_ON)
         {
-            std::cout << "Found motor " << (int)CANid << " in state " << devices[CANid].motor_state << ", adjusting to SWITCHED_ON" << std::endl;
+            // std::cout << "Found motor " << (int)CANid << " in state " << devices[CANid].motor_state << ", adjusting to SWITCHED_ON" << std::endl;
             setMotorState(CANid, canopen::MS_SWITCHED_ON);
         }
 
-        std::cout << std::dec << "setting mode of motor " << (int)CANid << " to " << modesDisplay.find(targetMode)->second << std::endl;
+        // std::cout << std::dec << "setting mode of motor " << (int)CANid << " to " << modesDisplay.find(targetMode)->second << std::endl;
         devices[CANid].operation_mode_target = targetMode;
         controlPDO(CANid);
         // check operation mode until correct mode is returned
@@ -428,7 +428,7 @@ namespace canopen
     bool setMotorState(uint8_t CANid, std::string targetState, double timeout)
     {
         start = std::chrono::high_resolution_clock::now();
-        std::cout << "Setting state of motor " << (int)CANid << " to " << targetState << std::endl;
+        // std::cout << "Setting state of motor " << (int)CANid << " to " << targetState << std::endl;
         while (devices[CANid].motor_state != targetState)
         {
             end = std::chrono::high_resolution_clock::now();
@@ -771,7 +771,6 @@ namespace canopen
         }
 
         devices[CANid].setFault(fault);
-        devices[CANid].setHoming(op_specific);
         devices[CANid].setOpSpec0(op_specific);
         devices[CANid].setOpSpec1(op_specific1);
         devices[CANid].setManSpec1(man_specific1);
@@ -820,43 +819,44 @@ namespace canopen
 
     void EMCY_incoming(uint8_t CANid, const TPCANRdMsg m)
     {
+        std::stringstream error_stream;
         uint16_t error_code =  m.Msg.DATA[0] +  (m.Msg.DATA[1] << 8);
         uint8_t error_class = m.Msg.DATA[2];
         uint8_t error_number = m.Msg.DATA[3];
 
 
-        std::cout << std::hex << "ERROR from CANid " << (int)CANid << ": " << NanotecErrorNumber[error_number] << "   ERROR CATEGORIES: ";
+        error_stream << std::hex << "ERROR from CANid " << (int)CANid << ": " << NanotecErrorNumber[error_number] << "   ERROR CATEGORIES: ";
 
         if ( error_class & EMC_k_1001_GENERIC )
-            std::cout << "generic ";
+            error_stream << "generic ";
         if ( error_class & EMC_k_1001_CURRENT)
-            std::cout << "current ";
+            error_stream << "current ";
         if ( error_class & EMC_k_1001_VOLTAGE )
-            std::cout << "voltage ";
+            error_stream << "voltage ";
         if ( error_class & EMC_k_1001_TEMPERATURE )
-            std::cout << "temperature ";
+            error_stream << "temperature ";
         if ( error_class & EMC_k_1001_COMMUNICATION )
-            std::cout << "communication ";
+            error_stream << "communication ";
         if ( error_class & EMC_k_1001_DEV_PROF_SPEC )
-            std::cout << "device profile specific ";
+            error_stream << "device profile specific ";
         if ( error_class & EMC_k_1001_RESERVED )
-            std::cout << "reserved ";
+            error_stream << "reserved ";
         if ( error_class & EMC_k_1001_MANUFACTURER)
-            std::cout << "manufacturer specific ";
+            error_stream << "manufacturer specific ";
 
         auto iter = error_codes.find(error_code);
-        std::cout << " Error Code: ";
+        error_stream << " Error Code: ";
         if ( iter != error_codes.end())
         {
-            std::cout << iter->second;
+            error_stream << iter->second;
         }
         else
         {
-            std::cout << std::hex << error_code;
+            error_stream << std::hex << error_code;
         }
 
-        std::cout << std::endl;
-        //devices[CANid].last_error = error_stream.str();
+        error_stream << std::endl;
+        devices[CANid].last_error = error_stream.str();
     }
 
     void initListenerThread(std::function<void ()> const& listener)
@@ -887,10 +887,11 @@ namespace canopen
             // incoming EMCY
             else if (m.Msg.ID >= COB_EMERGENCY && m.Msg.ID < COB_TIME_STAMP)
             {
+                EMCY_incoming(m.Msg.ID - COB_EMERGENCY, m);
                 if (incomingPDOHandlers.find(m.Msg.ID) != incomingPDOHandlers.end())
                     incomingPDOHandlers[m.Msg.ID](m);
                 else
-                    EMCY_incoming(m.Msg.ID - COB_EMERGENCY, m);
+                    std::cout << devices[m.Msg.ID - COB_EMERGENCY].last_error;
             }
 
             // incoming TIME
@@ -1243,7 +1244,7 @@ namespace canopen
         }
 
         sendSDO(id, SDOkey(RPDO.index+object,0x02), u_int8_t(sync_type));
-        std::cout << std::hex << "Mapping " << counter << " objects at CANid " << (int)id << " to RPDO" << object + 1 << std::endl;
+        // std::cout << std::hex << "Mapping " << counter << " objects at CANid " << (int)id << " to RPDO" << object + 1 << std::endl;
         sendSDO(id, SDOkey(RPDO_map.index+object,0x00), uint8_t(counter));
     }
 
@@ -1316,12 +1317,13 @@ namespace canopen
         }
 
         sendSDO(id, SDOkey(TPDO.index+object,0x02), u_int8_t(sync_type));
-        std::cout << std::hex << "Mapping " << counter << " objects at CANid " << (int)id << " to TPDO" << object + 1 << std::endl;
+        // std::cout << std::hex << "Mapping " << counter << " objects at CANid " << (int)id << " to TPDO" << object + 1 << std::endl;
         sendSDO(id, SDOkey(TPDO.index+object,0x03), uint16_t(10));
         if(devices[id].is_imu)  // send cyclic every 10ms
         {
             sendSDO(id, SDOkey(TPDO.index+object,0x05), uint16_t(10));
         }
+        //std::this_thread::sleep_for(std::chrono::milliseconds(10)); // We need this wait for Nanotec motors to prevent SDO aborts
         sendSDO(id, SDOkey(TPDO_map.index+object,0x00), uint8_t(counter));
     }
 

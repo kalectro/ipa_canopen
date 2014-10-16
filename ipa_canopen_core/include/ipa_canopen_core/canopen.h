@@ -134,7 +134,6 @@ namespace canopen{
         bool initialized_;
         bool nmt_init_;
         bool driveReferenced_;
-        bool homingError_;
         int64_t actualPos_;		// unit = ticks
         int32_t actualVel_;		// unit = ticks/sec
         std::chrono::seconds timeStamp_sec_;
@@ -343,11 +342,6 @@ namespace canopen{
             return man_specific2_;
         }
 
-        bool getHomingError(){
-            return homingError_;
-        }
-
-
         bool getNegativeLimit(){
             return hardware_limit_negative_;
         }
@@ -524,10 +518,6 @@ namespace canopen{
 
         void setFault(bool fault){
             fault_ = fault;
-        }
-
-        void setHoming(bool homing_error){
-            homingError_ = homing_error;
         }
 
         void setInitialized(bool initialized){
