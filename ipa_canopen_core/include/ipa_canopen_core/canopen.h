@@ -904,6 +904,8 @@ namespace canopen{
         {0x2310, "Output Current too high"},
         {0x3210, "Over/Undervoltage"},
         {0x4200, "Temperature Error"},
+        {0x5010, "Sensorfehler oder X-Winkelwert außerhalb des Messbereiches"},
+        {0x5020, "Sensorfehler oder Y-Winkelwert außerhalb des Messbereiches"},
         {0x7305, "Incremental Encoder 1 broken"},
         {0x8000, "CAN supervision error"},
         {0x8100, "Message Lost"},

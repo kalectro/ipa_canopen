@@ -109,6 +109,10 @@ namespace canopen
 
     DWORD CAN_Write_debug(HANDLE h, TPCANMsg *msg)
     {
+        if(canbus_error)
+        {
+            return -1;
+        }
         DWORD status = CAN_Status(h);
         int nreads, nwrites;
         int counter = 0;
