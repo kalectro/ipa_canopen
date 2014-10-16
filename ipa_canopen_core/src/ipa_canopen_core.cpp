@@ -348,6 +348,33 @@ namespace canopen
                         break;
                 }
             }
+            else if(devices[CANid].is_imu)
+            {
+                switch(pdo_channel)
+                {
+                    case 1:
+                        // longitudinal [0.01°]
+                        tpdo_registers.push_back("601000");
+                        tpdo_sizes.push_back(0x10); // 2 Byte Int16
+
+                        // lateral [0.01°]
+                        tpdo_registers.push_back("602000");
+                        tpdo_sizes.push_back(0x10); // 2 Byte Int16
+
+                        tsync_type = SYNC_TYPE_MANUFACTURER_SPECIFIC;
+                        break;
+                    case 2:
+                        break;
+                    case 3:
+                        break;
+                    case 4:
+                        break;
+                    default:
+                        std::cout << "ERROR: There are only 4 PDO channels" << std::endl;
+                        return false;
+                        break;
+                }
+            }
             pdo_map(CANid, pdo_channel, tpdo_registers, tpdo_sizes, tsync_type, rpdo_registers, rpdo_sizes, rsync_type);
         }
 
@@ -785,6 +812,12 @@ namespace canopen
         }
     }
 
+    void TPDO1_incoming_imu(uint8_t CANid, const TPCANRdMsg m)
+    {
+        devices[CANid].pitch = m.Msg.DATA[0] + (m.Msg.DATA[1] << 8);
+        devices[CANid].roll = m.Msg.DATA[2] + (m.Msg.DATA[3] << 8);
+    }
+
     void EMCY_incoming(uint8_t CANid, const TPCANRdMsg m)
     {
         uint16_t error_code =  m.Msg.DATA[0] +  (m.Msg.DATA[1] << 8);
@@ -854,7 +887,10 @@ namespace canopen
             // incoming EMCY
             else if (m.Msg.ID >= COB_EMERGENCY && m.Msg.ID < COB_TIME_STAMP)
             {
-                EMCY_incoming(m.Msg.ID - COB_EMERGENCY, m);
+                if (incomingPDOHandlers.find(m.Msg.ID) != incomingPDOHandlers.end())
+                    incomingPDOHandlers[m.Msg.ID](m);
+                else
+                    EMCY_incoming(m.Msg.ID - COB_EMERGENCY, m);
             }
 
             // incoming TIME
@@ -1282,6 +1318,10 @@ namespace canopen
         sendSDO(id, SDOkey(TPDO.index+object,0x02), u_int8_t(sync_type));
         std::cout << std::hex << "Mapping " << counter << " objects at CANid " << (int)id << " to TPDO" << object + 1 << std::endl;
         sendSDO(id, SDOkey(TPDO.index+object,0x03), uint16_t(10));
+        if(devices[id].is_imu)  // send cyclic every 10ms
+        {
+            sendSDO(id, SDOkey(TPDO.index+object,0x05), uint16_t(10));
+        }
         sendSDO(id, SDOkey(TPDO_map.index+object,0x00), uint8_t(counter));
     }
 

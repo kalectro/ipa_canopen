@@ -173,9 +173,11 @@ namespace canopen{
         int32_t ticks_per_rad_or_meter;
         uint64_t inputs;
         uint64_t outputs;
+        int16_t roll, pitch;
         bool is_motor;
         bool has_encoder;
         bool is_io_module;
+        bool is_imu;
         uint16_t statusword;
         std::string last_error;
         uint16_t controlword;
@@ -193,6 +195,8 @@ namespace canopen{
             motor_state("SWITCHED_ON_DISABLED"),
             is_motor(false),
             is_io_module(false),
+            is_imu(false),
+            roll(0), pitch(0),
             inputs(0), outputs(0),
             operation_mode_target(0),
             actual_operation_mode(0),
@@ -211,6 +215,8 @@ namespace canopen{
             motor_state("SWITCHED_ON_DISABLED"),
             is_motor(false),
             is_io_module(false),
+            is_imu(false),
+            roll(0), pitch(0),
             inputs(0), outputs(0),
             operation_mode_target(0),
             actual_operation_mode(0),
@@ -940,6 +946,7 @@ namespace canopen{
 
     const u_int8_t SYNC_TYPE_ACYCLIC = 0x00;
     const u_int8_t SYNC_TYPE_CYCLIC = 0x01;
+    const u_int8_t SYNC_TYPE_MANUFACTURER_SPECIFIC = 0xFE;
     const u_int8_t SYNC_TYPE_ASYNCHRONOUS = 0xFF;
 
     void uploadSDO(uint8_t CANid, SDOkey sdo);
