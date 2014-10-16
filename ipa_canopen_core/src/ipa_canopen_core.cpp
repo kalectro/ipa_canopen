@@ -72,6 +72,7 @@ namespace canopen
     BYTE protect_msg[8];
 
     std::string baudRate;
+    bool canbus_error = false;
     std::map<uint8_t, Device> devices;
     std::map<std::string, DeviceGroup> deviceGroups;
     HANDLE h;
@@ -114,11 +115,12 @@ namespace canopen
         while(status & 0x80)
         {
             status = LINUX_CAN_Extended_Status(h, &nreads, &nwrites);
-            // std::cout << "ugly status... waiting... for " << nreads << " reads and " << nwrites << " writes" << std::endl;
+            std::cout << "ugly status... waiting... for " << nreads << " reads and " << nwrites << " writes" << std::endl;
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
             if(counter++ >3)
             {
                 std::cout << "STATUS UGLY... ABORTING CAN WRITE" << std::endl;
+                canbus_error = true;
                 return -1;
             }
         }
@@ -879,7 +881,7 @@ namespace canopen
 
             else
             {
-                std::cout << "Received unknown message" << std::endl;
+                std::cout << "Received unknown message with id 0x" << std::hex << m.Msg.ID << " and Data 0x" << (int)m.Msg.DATA[0] << std::endl;
             }
         }
     }

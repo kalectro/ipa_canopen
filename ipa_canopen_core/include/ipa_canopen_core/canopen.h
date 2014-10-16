@@ -82,6 +82,7 @@
 
 namespace canopen{
     extern std::string baudRate;
+    extern bool canbus_error;
 
     /***************************************************************/
     // Define baudrates variables for accessing as string
@@ -964,6 +965,7 @@ namespace canopen{
     // void TPDO1_incoming_motors(uint8_t CANid, const TPCANRdMsg m);
     void TPDO2_incoming_motors(uint8_t CANid, const TPCANRdMsg m);
     void TPDO1_incoming_io(uint8_t CANid, const TPCANRdMsg m);
+    void TPDO1_incoming_imu(uint8_t CANid, const TPCANRdMsg m);
     void EMCY_incoming(uint8_t CANid, const TPCANRdMsg m);
 
     /***************************************************************/
