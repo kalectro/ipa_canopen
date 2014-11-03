@@ -295,7 +295,7 @@ namespace canopen
                         rpdo_sizes.push_back(0x20);
                         rsync_type = SYNC_TYPE_ASYNCHRONOUS;
 
-                        // Max Velocity
+                        // Profile Velocity
                         rpdo_registers.push_back("608100");
                         rpdo_sizes.push_back(0x20);
 
@@ -314,10 +314,23 @@ namespace canopen
                         rsync_type = SYNC_TYPE_ASYNCHRONOUS;
                         break;
                     case 4:
+                        // NanoJ Outputs 2500:1
+                        tpdo_registers.push_back("250001");
+                        tpdo_sizes.push_back(0x20);
+
+                        // NanoJ Outputs 2500:2
+                        tpdo_registers.push_back("250002");
+                        tpdo_sizes.push_back(0x20);
+
                         // Target Torque
                         rpdo_registers.push_back("607100");
                         rpdo_sizes.push_back(0x10);
 
+                        // VMM Inputs 2400:1
+                        rpdo_registers.push_back("240001");
+                        rpdo_sizes.push_back(0x20);
+
+                        tsync_type = SYNC_TYPE_ASYNCHRONOUS;
                         rsync_type = SYNC_TYPE_ASYNCHRONOUS;
                         break;
                 }
@@ -712,7 +725,7 @@ namespace canopen
         CAN_Write_debug(h, &msg);
     }
 
-    void RPDO4_outgoing(uint8_t CANid, int16_t target_torque)
+    void RPDO4_torque(uint8_t CANid, int16_t target_torque)
     {
         TPCANMsg msg;
         std::memset(&msg, 0, sizeof(msg));
@@ -725,6 +738,42 @@ namespace canopen
         msg.DATA[3] = 0x00;
         msg.DATA[4] = 0x00;
         msg.DATA[5] = 0x00;
+        msg.DATA[6] = 0x00;
+        msg.DATA[7] = 0x00;
+        CAN_Write_debug(h, &msg);
+    }
+
+    void RPDO4_jerk(uint8_t CANid, uint32_t profile_jerk)
+    {
+        TPCANMsg msg;
+        std::memset(&msg, 0, sizeof(msg));
+        msg.ID = COB_PDO4_RX + CANid;
+        msg.MSGTYPE = 0x00;
+        msg.LEN = 8;
+        msg.DATA[0] = 0;
+        msg.DATA[1] = 0;
+        msg.DATA[2] = profile_jerk & 0xFF;
+        msg.DATA[3] = (profile_jerk >> 8) & 0xFF;
+        msg.DATA[4] = (profile_jerk >> 16) & 0xFF;
+        msg.DATA[5] = (profile_jerk >> 24) & 0xFF;
+        msg.DATA[6] = 0x00;
+        msg.DATA[7] = 0x00;
+        CAN_Write_debug(h, &msg);
+    }
+
+    void RPDO4_position_rectified(uint8_t CANid, int32_t profile_position)
+    {
+        TPCANMsg msg;
+        std::memset(&msg, 0, sizeof(msg));
+        msg.ID = COB_PDO4_RX + CANid;
+        msg.MSGTYPE = 0x00;
+        msg.LEN = 8;
+        msg.DATA[0] = 0;
+        msg.DATA[1] = 0;
+        msg.DATA[2] = profile_position & 0xFF;
+        msg.DATA[3] = (profile_position >> 8) & 0xFF;
+        msg.DATA[4] = (profile_position >> 16) & 0xFF;
+        msg.DATA[5] = (profile_position >> 24) & 0xFF;
         msg.DATA[6] = 0x00;
         msg.DATA[7] = 0x00;
         CAN_Write_debug(h, &msg);

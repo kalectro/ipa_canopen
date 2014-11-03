@@ -106,6 +106,7 @@ namespace canopen{
         int32_t target;
         uint32_t max_velocity;
         u_int16_t control_word;
+        uint32_t jerk;
     };
 
     /***************************************************************/
@@ -837,6 +838,8 @@ namespace canopen{
     const int8_t MODES_OF_OPERATION_PROFILE_VELOCITY_MODE = 0x3;
     const int8_t MODES_OF_OPERATION_PROFILE_TORQUE_MODE = 0x4;
     const int8_t MODES_OF_OPERATION_INTERPOLATED_POSITION_MODE = 0x7;
+    const int8_t MODES_OF_OPERATION_AUTO_SETUP = -2;
+    const int8_t MODES_OF_OPERATION_AUTO_SETUP_OLD = -1;
 
     const u_int16_t COB_SYNC = 0x80;
     const u_int16_t COB_EMERGENCY = 0x80;
@@ -963,7 +966,9 @@ namespace canopen{
     void deviceManager(std::string chainName);
 
     void RPDO2_outgoing(uint8_t CANid, int32_t target_position, uint32_t max_velocity);
-    void RPDO4_outgoing(uint8_t CANid, int16_t target_torque);
+    void RPDO4_torque(uint8_t CANid, int16_t target_torque);
+    void RPDO4_jerk(uint8_t CANid, uint32_t profile_jerk);
+    void RPDO4_position_rectified(uint8_t CANid, int32_t profile_position);
     // void TPDO1_incoming_motors(uint8_t CANid, const TPCANRdMsg m);
     void TPDO2_incoming_motors(uint8_t CANid, const TPCANRdMsg m);
     void TPDO1_incoming_io(uint8_t CANid, const TPCANRdMsg m);
