@@ -1191,6 +1191,7 @@ namespace canopen
             }
             std::stringstream error_text;
             error_text << std::hex << "SDO abort from CAN id " << (int)CANid << " for SDO 0x" << sdo_id << "s" << (int)sdo_id_sub << " with the following error message: " << error_message << std::endl;
+            output_error(error_text.str());
         }
         else // no idea what I received
         {
