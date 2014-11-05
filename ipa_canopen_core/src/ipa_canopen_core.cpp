@@ -400,7 +400,7 @@ namespace canopen
 
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
         canopen::sendNMT(CANid, canopen::NMT_START_REMOTE_NODE);
-        std::cout << std::hex << "Initialized the PDO mapping for Node: " << (int)CANid << std::endl;
+        // std::cout << std::hex << "Initialized the PDO mapping for Node: " << (int)CANid << std::endl;
         canopen::devices[CANid].setInitialized(true);
         return true;
     }
@@ -408,6 +408,18 @@ namespace canopen
     void setNMTState(uint8_t CANid, std::string targetState)
     {
 
+    }
+
+    void output_error(std::string incoming_error)
+    {
+        if(error_handler)
+        {
+            error_handler(incoming_error);
+        }
+        else
+        {
+            std::cout << incoming_error << std::endl;
+        }
     }
 
     bool setOperationMode(uint8_t CANid, int8_t targetMode, double timeout)
@@ -437,7 +449,7 @@ namespace canopen
 
             if(elapsed_seconds.count() > timeout)
             {
-                std::cout << "setting operation mode failed" << std::endl;
+                output_error("setting operation mode failed");
                 return false;
             }
         }
@@ -669,14 +681,7 @@ namespace canopen
                 {
                     std::stringstream error;
                     error << std::hex << "Write error at CANid " << (int)CANid << " to SDO " << sdo.index << "s" << (int)sdo.subindex <<" with value " << (int)value << ", read value " << response_sdo.value << std::endl;
-                    if(error_handler)
-                    {
-                        error_handler(error.str());
-                    }
-                    else
-                    {
-                        std::cout << error;
-                    }
+                    output_error(error.str());
                     return false;
                 }
                 // Restart timer
@@ -874,7 +879,7 @@ namespace canopen
             TPCANRdMsg m;
             errno = LINUX_CAN_Read(h, &m);
             if(errno != 0)
-                std::cout << "LINUX_CAN_Read() " << errno << std::endl;
+                output_error("LINUX_CAN_Read()");
             if (errno)
                 perror("LINUX_CAN_Read() error");
 
@@ -890,7 +895,7 @@ namespace canopen
                 if (incomingPDOHandlers.find(m.Msg.ID) != incomingPDOHandlers.end())
                     incomingPDOHandlers[m.Msg.ID](m);
                 else
-                    std::cout << devices[m.Msg.ID - COB_EMERGENCY].last_error;
+                    output_error(devices[m.Msg.ID - COB_EMERGENCY].last_error);
             }
 
             // incoming TIME
@@ -934,9 +939,10 @@ namespace canopen
                     // std::cout << "Found " << (u_int16_t)search->first << "\n";
                     if(nmt_state.find(m.Msg.DATA[0])->second == "Bootup")
                     {
-                        if(devices[CANid].getNMTInit())
+                        // catch second bootup message after device was initialized
+                        if(devices[CANid].getNMTInit() && devices[CANid].getInitialized())
                         {
-                            std::cout << "RECEIVED SECOND BOOTUP!! !THIS IS BAD!" << std::endl;
+                            output_error("RECEIVED SECOND BOOTUP!!! THIS IS BAD!");
                         }
                         else
                         {
@@ -1183,8 +1189,8 @@ namespace canopen
             {
                 error_message = (*iter).second;
             }
-            std::cout << std::hex << "SDO abort from CAN id " << (int)CANid << " for SDO 0x" << sdo_id << "s" << (int)sdo_id_sub << " with the following error message:" << std::endl;
-            std::cout << " " << error_message << std::endl;
+            std::stringstream error_text;
+            error_text << std::hex << "SDO abort from CAN id " << (int)CANid << " for SDO 0x" << sdo_id << "s" << (int)sdo_id_sub << " with the following error message: " << error_message << std::endl;
         }
         else // no idea what I received
         {

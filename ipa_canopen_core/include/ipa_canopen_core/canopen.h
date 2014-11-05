@@ -660,6 +660,7 @@ namespace canopen{
     void setNMTState(uint8_t CANid, std::string targetState);
     bool setMotorState(uint8_t CANid, std::string targetState, double timeout = 10.0);
     bool setOperationMode(uint8_t CANid, int8_t targetMode, double timeout = 10.0);
+    void output_error(std::string incoming_error = "ERROR");
 
     void makeRPDOMapping(uint8_t id, int object, std::vector<std::string> registers, std::vector<int> sizes, u_int8_t sync_type);
     void disableRPDO(uint8_t id, int object);
