@@ -70,6 +70,7 @@ namespace canopen
     /***************************************************************/
     bool sdo_protect=false;
     BYTE protect_msg[8];
+    void (*error_handler)(const std::string&) = NULL;
 
     std::string baudRate;
     bool canbus_error = false;
@@ -666,7 +667,16 @@ namespace canopen
             {
                 if(trial_counter++ >= trials)
                 {
-                    std::cout << std::hex << "Write error at CANid " << (int)CANid << " to SDO " << sdo.index << "s" << (int)sdo.subindex <<" with value " << (int)value << ", read value " << response_sdo.value << std::endl;
+                    std::stringstream error;
+                    error << std::hex << "Write error at CANid " << (int)CANid << " to SDO " << sdo.index << "s" << (int)sdo.subindex <<" with value " << (int)value << ", read value " << response_sdo.value << std::endl;
+                    if(error_handler)
+                    {
+                        error_handler(error.str());
+                    }
+                    else
+                    {
+                        std::cout << error;
+                    }
                     return false;
                 }
                 // Restart timer
@@ -858,7 +868,7 @@ namespace canopen
 
     void defaultListener()
     {
-        while(true)
+        while(!canbus_error)
         {
             //std::cout << "Reading incoming data" << std::endl;
             TPCANRdMsg m;
@@ -918,12 +928,22 @@ namespace canopen
             {
                 uint8_t CANid = m.Msg.ID - COB_NODEGUARD;
 
-                std::cout << std::hex << "Received NMT message from CANid " << (int)CANid << ". Current state: " << nmt_state.find(m.Msg.DATA[0])->second << std::endl;
                 std::map<uint8_t,Device>::const_iterator search = devices.find(CANid);
                 if(search != devices.end())
                 {
                     // std::cout << "Found " << (u_int16_t)search->first << "\n";
-                    devices[CANid].setNMTInit(true);
+                    if(nmt_state.find(m.Msg.DATA[0])->second == "Bootup")
+                    {
+                        if(devices[CANid].getNMTInit())
+                        {
+                            std::cout << "RECEIVED SECOND BOOTUP!! !THIS IS BAD!" << std::endl;
+                        }
+                        else
+                        {
+                            devices[CANid].setNMTInit(true);
+                            std::cout << std::hex << "Bootup from CANid " << (int)CANid << std::endl;
+                        }
+                    }
                 }
                 else
                 {
@@ -1154,6 +1174,9 @@ namespace canopen
         {
             response_sdo.aborted = true;
             uint32_t abort_code = data[4] + (data[5] << 8) + (data[6] << 16) + (data[7] << 24);
+            // Ignore Nanotec bug message
+            if(abort_code == 0x06040042)
+                return;
             auto iter = sdo_abort_messages.find(abort_code);
             std::string error_message = "SDO Abort";
             if ( iter != sdo_abort_messages.end())
@@ -1340,4 +1363,8 @@ namespace canopen
         sendSDO(id, SDOkey(TPDO.index+object,0x01), data);
     }
 
+    void set_error_handler(void (*set_me)(const std::string&))
+    {
+        error_handler = set_me;
+    }
 }

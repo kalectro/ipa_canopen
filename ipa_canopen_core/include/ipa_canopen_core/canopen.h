@@ -981,6 +981,7 @@ namespace canopen{
 
     void initListenerThread(std::function<void ()> const& listener);
     void defaultListener();
+    void set_error_handler(void (*set_me)(const std::string&));
 }
 
 #endif
