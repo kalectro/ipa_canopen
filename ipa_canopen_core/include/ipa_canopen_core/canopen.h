@@ -642,7 +642,6 @@ namespace canopen{
 
     void sdo_incoming(uint8_t CANid, BYTE data[8]);
     void errorword_incoming(uint8_t CANid, BYTE data[8]);
-    void manufacturer_incoming(uint8_t CANid, BYTE data[8]);
 
     extern std::map<std::string, DeviceGroup> deviceGroups;	// DeviceGroup name -> DeviceGroup object
     extern std::vector<std::thread> managerThreads;
@@ -672,20 +671,10 @@ namespace canopen{
     void clearTPDOMapping(uint8_t id, int object);
     void enableTPDO(uint8_t id, int object);
 
-    std::vector<char> obtainManSWVersion(uint8_t CANid, std::shared_ptr<TPCANRdMsg> m);
-    std::vector<char> obtainManHWVersion(uint8_t CANid, std::shared_ptr<TPCANRdMsg> m);
-    std::vector<char> obtainManDevName(uint8_t CANid, int size_name);
-    std::vector<uint8_t> obtainVendorID(uint8_t CANid);
-    uint16_t obtainRevNr(uint8_t CANid, std::shared_ptr<TPCANRdMsg> m);
-    std::vector<uint16_t> obtainProdCode(uint8_t CANid, std::shared_ptr<TPCANRdMsg> m);
-    void readManErrReg(uint8_t CANid);
-
-
     /***************************************************************/
     //	define init variables and functions
     /***************************************************************/
 
-    extern bool sdo_protect;
     extern BYTE protect_msg[];
 
     extern bool no_position;

@@ -68,7 +68,6 @@ namespace canopen
     /***************************************************************/
     //			define global variables and functions
     /***************************************************************/
-    bool sdo_protect=false;
     BYTE protect_msg[8];
     void (*error_handler)(const std::string&) = NULL;
 
@@ -83,7 +82,6 @@ namespace canopen
     SDOanswer requested_sdo;
     SDOanswer response_sdo;
 
-    std::map<SDOkey, std::function<void (uint8_t CANid, BYTE data[8])> > incomingManufacturerDetails { {MANUFACTURERHWVERSION, manufacturer_incoming}, {MANUFACTURERDEVICENAME, manufacturer_incoming}, {MANUFACTURERSOFTWAREVERSION, manufacturer_incoming} };
     std::map<uint16_t, std::function<void (const TPCANRdMsg m)> > incomingPDOHandlers;
     std::map<uint16_t, std::function<void (const TPCANRdMsg m)> > incomingEMCYHandlers;
 
@@ -195,19 +193,6 @@ namespace canopen
             canopen::initDeviceManagerThread(chainName,canopen::deviceManager);
 
             canopen::deviceGroups[chainName].setFirstInit(false);
-
-            while(sdo_protect)
-            {
-                time_end = std::chrono::high_resolution_clock::now();
-                elapsed_seconds = time_end - time_start;
-
-                if(elapsed_seconds.count() > 5.0)
-                {
-                    std::cout << "not ready for operation. Probably due to communication problems with the Master." << std::endl;
-                    return false;
-                }
-                std::this_thread::sleep_for(std::chrono::milliseconds(10));
-            }
         }
 
         std::chrono::time_point<std::chrono::high_resolution_clock> time_start, time_end;
@@ -540,42 +525,6 @@ namespace canopen
 
     TPCANMsg NMTmsg;
     TPCANMsg syncMsg;
-
-    void requestDataBlock1(uint8_t CANid)
-    {
-        TPCANMsg msg;
-        std::memset(&msg, 0, sizeof(msg));
-        msg.ID = CANid + COB_SDO_RX;
-        msg.MSGTYPE = 0x00;
-        msg.LEN = 8;
-        msg.DATA[0] = 0x60;
-        msg.DATA[1] = 0x00;
-        msg.DATA[2] = 0x00;
-        msg.DATA[3] = 0x00;
-        msg.DATA[4] = 0x00;
-        msg.DATA[5] = 0x00;
-        msg.DATA[6] = 0x00;
-        msg.DATA[7] = 0x00;
-        CAN_Write_debug(h, &msg);
-    }
-
-    void requestDataBlock2(uint8_t CANid)
-    {
-        TPCANMsg msg;
-        std::memset(&msg, 0, sizeof(msg));
-        msg.ID = CANid + COB_SDO_RX;
-        msg.MSGTYPE = 0x00;
-        msg.LEN = 8;
-        msg.DATA[0] = 0x70;
-        msg.DATA[1] = 0x00;
-        msg.DATA[2] = 0x00;
-        msg.DATA[3] = 0x00;
-        msg.DATA[4] = 0x00;
-        msg.DATA[5] = 0x00;
-        msg.DATA[6] = 0x00;
-        msg.DATA[7] = 0x00;
-        CAN_Write_debug(h, &msg);
-    }
 
     void sendControlWord(uint8_t CANid, uint16_t target_controlword){
         devices[CANid].controlword = target_controlword;
@@ -913,19 +862,7 @@ namespace canopen
             // incoming SD0
             else if (m.Msg.ID >= COB_SDO_TX && m.Msg.ID < COB_SDO_RX)
             {
-                SDOkey sdoKey(m);
-                if(sdo_protect)
-                {
-                    std::copy(std::begin(m.Msg.DATA), std::end(m.Msg.DATA), std::begin(protect_msg));
-                    sdo_protect = false;
-                }
-                else
-                {
-                    if (incomingManufacturerDetails.find(sdoKey) != incomingManufacturerDetails.end())
-                        incomingManufacturerDetails[sdoKey](m.Msg.ID - COB_SDO_TX, m.Msg.DATA);
-                    else
-                        sdo_incoming(m.Msg.ID - COB_SDO_TX, m.Msg.DATA);
-                }
+                sdo_incoming(m.Msg.ID - COB_SDO_TX, m.Msg.DATA);
             }
 
             // incoming NMT heartbeat
@@ -963,181 +900,6 @@ namespace canopen
                 std::cout << "Received unknown message with id 0x" << std::hex << m.Msg.ID << " and Data 0x" << (int)m.Msg.DATA[0] << std::endl;
             }
         }
-    }
-
-    void manufacturer_incoming(uint8_t CANid, BYTE data[8])
-    {
-        sdo_protect = true;
-
-        if(data[1]+(data[2]<<8) == 0x1008)
-        {
-            std::vector<char> manufacturer_device_name = canopen::obtainManDevName(CANid, data[4]);
-
-            devices[CANid].setManufacturerDevName(manufacturer_device_name);
-        }
-    }
-
-    std::vector<uint8_t> obtainVendorID(uint8_t CANid)
-    {
-        canopen::uploadSDO(CANid, canopen::IDENTITYVENDORID);
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    }
-
-    std::vector<uint16_t> obtainProdCode(uint8_t CANid, std::shared_ptr<TPCANRdMsg> m)
-    {
-        canopen::uploadSDO(CANid, canopen::IDENTITYPRODUCTCODE);
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-
-        std::vector<uint16_t> product_code;
-
-        canopen::processSingleSDO(CANid, m);
-
-        uint8_t id4 = m->Msg.DATA[4];
-        uint8_t id3 = m->Msg.DATA[5];
-        uint8_t id2 = m->Msg.DATA[6];
-        uint8_t id1 = m->Msg.DATA[7];
-
-        product_code.push_back(id1);
-        product_code.push_back(id2);
-        product_code.push_back(id3);
-        product_code.push_back(id4);
-
-        return product_code;
-
-    }
-
-    uint16_t obtainRevNr(uint8_t CANid, std::shared_ptr<TPCANRdMsg> m)
-    {
-        canopen::uploadSDO(CANid, canopen::IDENTITYREVNUMBER);
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-
-
-        canopen::processSingleSDO(CANid, m);
-
-        uint8_t rev_number = m->Msg.DATA[4];
-
-        return rev_number;
-
-    }
-
-    std::vector<char> obtainManDevName(uint8_t CANid, int size_name)
-    {
-
-        std::vector<char> manufacturer_device_name;
-
-        canopen::requestDataBlock1(CANid);
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        for (auto it : protect_msg)
-        {
-            if(manufacturer_device_name.size() <= size_name)
-                manufacturer_device_name.push_back(it);
-        }
-
-        return manufacturer_device_name;
-
-    }
-
-    std::vector<char> obtainManHWVersion(uint8_t CANid, std::shared_ptr<TPCANRdMsg> m)
-    {
-        canopen::uploadSDO(CANid, canopen::MANUFACTURERHWVERSION);
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-
-        std::vector<char> manufacturer_hw_version;
-
-        canopen::processSingleSDO(CANid, m);
-
-        int size = m->Msg.DATA[4];
-
-        canopen::requestDataBlock1(CANid);
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-
-        canopen::processSingleSDO(CANid, m);
-
-
-        for (auto it : m->Msg.DATA)
-        {
-            if(manufacturer_hw_version.size() <= size)
-                manufacturer_hw_version.push_back(it);
-        }
-
-
-        canopen::requestDataBlock2(CANid);
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-
-        canopen::processSingleSDO(CANid, m);
-
-
-        for (auto it : m->Msg.DATA)
-        {
-            if(manufacturer_hw_version.size() <= size)
-                manufacturer_hw_version.push_back(it);
-        }
-
-        return manufacturer_hw_version;
-    }
-
-    std::vector<char> obtainManSWVersion(uint8_t CANid, std::shared_ptr<TPCANRdMsg> m)
-    {
-        std::vector<char> manufacturer_sw_version;
-
-        canopen::uploadSDO(CANid, canopen::MANUFACTURERSOFTWAREVERSION);
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-
-        canopen::processSingleSDO(CANid, m);
-
-        int size = (uint8_t)m->Msg.DATA[4];
-
-        canopen::requestDataBlock1(CANid);
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-
-        canopen::processSingleSDO(CANid, m);
-
-
-        for (auto it : m->Msg.DATA)
-        {
-            if(manufacturer_sw_version.size() <= size)
-                manufacturer_sw_version.push_back(it);
-        }
-
-
-        canopen::requestDataBlock2(CANid);
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-
-        canopen::processSingleSDO(CANid, m);
-
-
-        for (auto it : m->Msg.DATA)
-        {
-            if(manufacturer_sw_version.size() <= size)
-                manufacturer_sw_version.push_back(it);
-        }
-
-        canopen::requestDataBlock1(CANid);
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-
-        canopen::processSingleSDO(CANid, m);
-
-
-        for (auto it : m->Msg.DATA)
-        {
-            if(manufacturer_sw_version.size() <= size)
-                manufacturer_sw_version.push_back(it);
-        }
-
-        canopen::requestDataBlock2(CANid);
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-
-        canopen::processSingleSDO(CANid, m);
-
-
-        for (auto it : m->Msg.DATA)
-        {
-            if(manufacturer_sw_version.size() <= size)
-                manufacturer_sw_version.push_back(it);
-        }
-
-        return manufacturer_sw_version;
-
     }
 
     void sdo_incoming(uint8_t CANid, BYTE data[8])
@@ -1204,17 +966,6 @@ namespace canopen
             //std::cout << "requested sdo received " << response_sdo.value << std::endl;
             requested_sdo.confirmed = true;
             requested_sdo.value = response_sdo.value;
-        }
-    }
-
-    void processSingleSDO(uint8_t CANid, std::shared_ptr<TPCANRdMsg> message)
-    {
-        message->Msg.ID = 0x00;
-
-        while (message->Msg.ID != (COB_SDO_TX+CANid))
-        {
-            LINUX_CAN_Read(canopen::h, message.get());
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
     }
 
