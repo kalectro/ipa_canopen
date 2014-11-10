@@ -172,7 +172,7 @@ namespace canopen
 
                 if (!connection_success)
                 {
-                    std::cout << "Cannot open CAN device "<< deviceFile << "; aborting." << std::endl;
+                    output_error("Cannot open CAN device " + deviceFile + "; aborting.");
                     exit(EXIT_FAILURE);
                 }
                 canopen::initListenerThread(canopen::defaultListener);
