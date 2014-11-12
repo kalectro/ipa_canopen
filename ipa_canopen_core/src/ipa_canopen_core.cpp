@@ -380,6 +380,29 @@ namespace canopen
                         break;
                 }
             }
+            else if(devices[CANid].is_encoder)
+            {
+                switch(pdo_channel)
+                {
+                    case 1:
+                        // Actual Position
+                        tpdo_registers.push_back("600400");
+                        tpdo_sizes.push_back(0x20); // uint32
+
+                        // Actual Velocity
+                        tpdo_registers.push_back("603001");
+                        tpdo_sizes.push_back(0x10); // int16
+
+                        tsync_type = SYNC_TYPE_ASYNCHRONOUS;
+                        break;
+                    case 2:
+                        break;
+                    default:
+                        std::cout << "ERROR: There are only 2 PDO channels" << std::endl;
+                        return false;
+                        break;
+                }
+            }
             pdo_map(CANid, pdo_channel, tpdo_registers, tpdo_sizes, tsync_type, rpdo_registers, rpdo_sizes, rsync_type);
         }
 
@@ -1089,7 +1112,7 @@ namespace canopen
         sendSDO(id, SDOkey(TPDO.index+object,0x02), u_int8_t(sync_type));
         // std::cout << std::hex << "Mapping " << counter << " objects at CANid " << (int)id << " to TPDO" << object + 1 << std::endl;
         sendSDO(id, SDOkey(TPDO.index+object,0x03), uint16_t(10));
-        if(devices[id].is_imu)  // send cyclic every 10ms
+        if(devices[id].is_imu || devices[id].is_encoder)  // send cyclic every 10ms
         {
             sendSDO(id, SDOkey(TPDO.index+object,0x05), uint16_t(10));
         }

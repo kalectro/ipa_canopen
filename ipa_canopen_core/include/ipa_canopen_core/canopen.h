@@ -179,6 +179,7 @@ namespace canopen{
         bool has_encoder;
         bool is_io_module;
         bool is_imu;
+        bool is_encoder;
         uint16_t statusword;
         std::string last_error;
         uint16_t controlword;
@@ -197,11 +198,13 @@ namespace canopen{
             is_motor(false),
             is_io_module(false),
             is_imu(false),
+            is_encoder(false),
             roll(0), pitch(0),
             inputs(0), outputs(0),
             operation_mode_target(0),
             actual_operation_mode(0),
             controlword(0),
+            polarity(1.0),
             was_homed(false),
             nmt_init_(false)
         {
@@ -217,11 +220,13 @@ namespace canopen{
             is_motor(false),
             is_io_module(false),
             is_imu(false),
+            is_encoder(false),
             roll(0), pitch(0),
             inputs(0), outputs(0),
             operation_mode_target(0),
             actual_operation_mode(0),
             controlword(0),
+            polarity(1.0),
             was_homed(false),
             nmt_init_(false) {};
 
