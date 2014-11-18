@@ -187,6 +187,8 @@ namespace canopen{
         int8_t actual_operation_mode;
         bool was_homed;
         std::string motor_state;
+        std::string user_code;
+        double max_jerk;
         
         Device() :
             CANid_(-1),
@@ -206,6 +208,8 @@ namespace canopen{
             controlword(0),
             polarity(1.0),
             was_homed(false),
+            user_code("none"),
+            max_jerk(1000.0),
             nmt_init_(false)
         {
         }
@@ -228,6 +232,8 @@ namespace canopen{
             controlword(0),
             polarity(1.0),
             was_homed(false),
+            user_code("none"),
+            max_jerk(1000.0),
             nmt_init_(false) {};
 
         bool getNMTInit(){
