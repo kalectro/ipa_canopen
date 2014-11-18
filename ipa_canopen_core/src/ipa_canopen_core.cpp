@@ -208,7 +208,9 @@ namespace canopen
 
             if(elapsed_seconds.count() > 10.0)
             {
-                std::cout << "Node: " << (uint16_t)CANid << " is not ready for operation. Please check for potential problems." << std::endl;
+                std::stringstream error;
+                error << "Node: " << (uint16_t)CANid << " is not ready for operation. Please check for potential problems." << std::endl;
+                output_error(error.str());
                 return false;
             }
 
@@ -652,7 +654,7 @@ namespace canopen
                 if(trial_counter++ >= trials)
                 {
                     std::stringstream error;
-                    error << std::hex << "Write error at CANid " << (int)CANid << " to SDO " << sdo.index << "s" << (int)sdo.subindex <<" with value " << (int)value << ", read value " << response_sdo.value << std::endl;
+                    error << std::hex << "Write error at CANid " << (int)CANid << " to SDO " << sdo.index << "s" << (int)sdo.subindex <<" with value " << (int)value << ", read value " << response_sdo.value;
                     output_error(error.str());
                     return false;
                 }
