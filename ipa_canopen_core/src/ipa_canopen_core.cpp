@@ -904,7 +904,9 @@ namespace canopen
                         // catch second bootup message after device was initialized
                         if(devices[CANid].getNMTInit() && devices[CANid].getInitialized())
                         {
-                            output_error("RECEIVED SECOND BOOTUP!!! THIS IS BAD!");
+                            std::stringstream error;
+                            error << "RECEIVED SECOND BOOTUP FROM CAN ID " << CANid << "  THIS IS BAD!";
+                            output_error(error.str());
                         }
                         else
                         {
