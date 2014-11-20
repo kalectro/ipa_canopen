@@ -905,7 +905,7 @@ namespace canopen
                         if(devices[CANid].getNMTInit() && devices[CANid].getInitialized())
                         {
                             std::stringstream error;
-                            error << "RECEIVED SECOND BOOTUP FROM CAN ID " << CANid << "  THIS IS BAD!";
+                            error << "RECEIVED SECOND BOOTUP FROM CAN ID " << (int)CANid << "  THIS IS BAD!";
                             output_error(error.str());
                         }
                         else
