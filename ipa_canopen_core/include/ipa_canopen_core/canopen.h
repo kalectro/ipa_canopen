@@ -180,6 +180,7 @@ namespace canopen{
         bool is_io_module;
         bool is_imu;
         bool is_encoder;
+        bool use_analog;
         uint16_t statusword;
         std::string last_error;
         uint16_t controlword;
@@ -189,6 +190,8 @@ namespace canopen{
         std::string motor_state;
         std::string user_code;
         double max_jerk;
+        std::deque <int16_t> analog1;
+        double analog1_inhibit_time;
         
         Device() :
             CANid_(-1),
@@ -201,6 +204,7 @@ namespace canopen{
             is_io_module(false),
             is_imu(false),
             is_encoder(false),
+            use_analog(false),
             roll(0), pitch(0),
             inputs(0), outputs(0),
             operation_mode_target(0),
@@ -225,6 +229,7 @@ namespace canopen{
             is_io_module(false),
             is_imu(false),
             is_encoder(false),
+            use_analog(false),
             roll(0), pitch(0),
             inputs(0), outputs(0),
             operation_mode_target(0),

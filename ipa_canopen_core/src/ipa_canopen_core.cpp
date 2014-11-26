@@ -291,6 +291,14 @@ namespace canopen
                         rsync_type = SYNC_TYPE_ASYNCHRONOUS;
                         break;
                     case 3:
+                        if(devices[CANid].use_analog)
+                        {
+                            // Analog Inputs
+                            tpdo_registers.push_back("322001");
+                            tpdo_sizes.push_back(0x10);
+                            tpdo_registers.push_back("322002");
+                            tpdo_sizes.push_back(0x10);
+                        }
                         // Profile Acceleration
                         rpdo_registers.push_back("608300");
                         rpdo_sizes.push_back(0x20);
@@ -299,6 +307,7 @@ namespace canopen
                         rpdo_registers.push_back("608400");
                         rpdo_sizes.push_back(0x20);
 
+                        tsync_type = SYNC_TYPE_ASYNCHRONOUS;
                         rsync_type = SYNC_TYPE_ASYNCHRONOUS;
                         break;
                     case 4:
@@ -924,7 +933,9 @@ namespace canopen
 
             else
             {
-                std::cout << "Received unknown message with id 0x" << std::hex << m.Msg.ID << " and Data 0x" << (int)m.Msg.DATA[0] << std::endl;
+                std::stringstream error;
+                error << "Received unknown message with id 0x" << std::hex << m.Msg.ID << " and Data 0x" << (int)m.Msg.DATA[0] << " 0x" << (int)m.Msg.DATA[1] << " 0x" << (int)m.Msg.DATA[2] << " 0x" << (int)m.Msg.DATA[3];
+                output_error(error.str());
             }
         }
     }
