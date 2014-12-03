@@ -82,11 +82,13 @@
 #include <ros/ros.h>
 #include <boost/shared_ptr.hpp>
 #include <boost/make_shared.hpp>
-#include <canopen_interface/IOMessageTrigger.h>
 
 namespace canopen{
     extern std::string baudRate;
     extern bool canbus_error;
+    extern HANDLE h;
+    extern bool atFirstInit;
+    extern std::vector<std::string> openDeviceFiles;
 
     /***************************************************************/
     // Define baudrates variables for accessing as string
@@ -127,7 +129,7 @@ namespace canopen{
             subindex(m.Msg.DATA[3]),
             size(4) {}
 
-        ObjectKey(uint16_t i, uint8_t s, uint8_t object_size = 0x20):
+        ObjectKey(uint16_t i, uint8_t s, uint8_t object_size):
             index(i),
             subindex(s),
             size(object_size) {}
@@ -135,12 +137,18 @@ namespace canopen{
         ObjectKey() {}
     };
 
-    struct SDOanswer{
+    class SDOanswer
+    {
+    public:
         uint8_t can_id;
         ObjectKey object;
         int32_t value;
         bool aborted;
         bool confirmed;
+
+        SDOanswer():
+            can_id(0),
+            confirmed(false){}
     };
 
     class JointState
@@ -159,274 +167,17 @@ namespace canopen{
         {}
     };
 
-    class Device
-    {
-
-    private:
-        void makeRPDOMapping(int object, uint8_t sync_type);
-        void disableRPDO(int object);
-        void clearRPDOMapping(int object);
-        void enableRPDO(int object);
-
-        void makeTPDOMapping(int object, uint8_t sync_type);
-        void disableTPDO(int object);
-        void clearTPDOMapping(int object);
-        void enableTPDO(int object);
-
-        // test all possible int types allowed to make sure they are built into the library
-        void test_sdo_types();
-
-        double conversion_factor_;
-        double offset_;
-        std::string NMTState_;
-        std::string deviceFile_;
-
-    protected:
-        std::vector<ObjectKey> tpdo_registers_, rpdo_registers_;
-        void pdo_map(int pdo_id, uint8_t tsync_type, uint8_t rsync_type);
-        uint8_t CANid_;
-        uint64_t outputs_;
-
-    public:
-        float polarity;
-        uint64_t inputs;
-        bool is_motor;
-        bool is_io_module;
-        bool is_imu;
-        bool is_encoder;
-        std::string last_error;
-        bool nmt_init;
-        bool initialized;
-        std::string name;
-        SDOanswer requested_sdo;
-        SDOanswer response_sdo;
-        canopen_interface::IOMessageTrigger input_trigger;
-
-        bool init(std::string deviceFile, uint8_t max_pdo_channels = 4);
-        void uploadSDO(ObjectKey sdo);
-        bool sendSDO(ObjectKey sdo, int value, bool verify = true, int32_t trials = 5, double timeout = 1.0);
-
-        Device() :
-            CANid_(-1),
-            initialized(false),
-            NMTState_("START_UP"),
-            is_motor(false),
-            is_io_module(false),
-            is_imu(false),
-            is_encoder(false),
-            inputs(0), outputs_(0),
-            polarity(1.0),
-            nmt_init(false),
-            name("my_motor") {}
-
-        Device(uint8_t CANid, std::string name):
-            CANid_(CANid),
-            initialized(false),
-            NMTState_("START_UP"),
-            is_motor(false),
-            is_io_module(false),
-            is_imu(false),
-            is_encoder(false),
-            inputs(0), outputs_(0),
-            polarity(1.0),
-            nmt_init(false),
-            name(name) {}
-
-        std::string getNMTState(){
-            return NMTState_;
-        }
-
-        std::string getDeviceFile(){
-            return deviceFile_;
-        }
-
-        uint8_t getCANid()
-        {
-            return CANid_;
-        }
-
-        std::string get_name()
-        {
-            return name;
-        }
-
-        void setNMTState(std::string nextState){
-            NMTState_ = nextState;
-        }
-    };
-
-    class Imu : public Device
-    {
-    public:
-        int16_t roll, pitch;
-        Imu():
-            roll(0),
-            pitch(0) {}
-        void TPDO1_incoming(const TPCANRdMsg m);
-    };
-
-    class IoModule : public Device
-    {
-    public:
-        IoModule()
-            {}
-        void TPDO1_incoming(const TPCANRdMsg m);
-    };
-
-    class Encoder : public Device
-    {
-    public:
-        JointState joint_state;
-        Encoder():
-            joint_state() {}
-        void TPDO1_incoming(const TPCANRdMsg m);
-    };
-
-    class Motor : public Device
-    {
-    private:
-        int8_t operation_mode_target_;
-        void controlPDO();
-
-    public:
-        std::string state;
-        bool was_homed;
-        std::string user_code;
-        double max_jerk;
-        std::deque <int16_t> analog0;
-        std::deque <int16_t> analog1;
-        double analog0_inhibit_time;
-        double analog1_inhibit_time;
-        bool has_encoder;
-        bool use_analog;
-        std::queue <ProfilePosition> position_commands;
-        std::pair<bool, ros::Time> ack;
-        int retry;
-        int32_t nanoj_outputs;
-
-        class Status
-        {
-        public:
-            uint16_t statusword;
-            uint16_t controlword;
-            bool ready_switch_on;
-            bool switched_on;
-            bool op_enable;
-            bool fault;
-            bool volt_enable;
-            bool quick_stop;
-            bool switch_on_disabled;
-            bool warning;
-            bool target_reached;
-            bool internal_limit;
-            bool op_specific0;
-            bool op_specific1;
-            bool man_specific0;
-            bool man_specific1;
-            bool mode_specific;
-            bool remote;
-            int8_t actual_operation_mode;
-            ros::Time stamp;
-            std::string state;
-
-            Status():
-                statusword(0),
-                controlword(0),
-                ready_switch_on(false),
-                switched_on(false),
-                op_enable(false),
-                fault(false),
-                volt_enable(false),
-                quick_stop(false),
-                switch_on_disabled(false),
-                warning(false),
-                target_reached(false),
-                internal_limit(false),
-                op_specific0(false),
-                op_specific1(false),
-                man_specific0(false),
-                man_specific1(false),
-                mode_specific(false),
-                remote(false),
-                actual_operation_mode(0),
-                stamp(ros::Time::now()),
-                state("SWITCHED_ON_DISABLED")
-            {}
-        };
-
-        JointState joint_state;
-        Status status;
-
-        Motor():
-            joint_state(),
-            status(),
-            use_analog(false),
-            was_homed(false),
-            user_code("none"),
-            max_jerk(1000.0),
-            operation_mode_target_(0),
-            ack({true, ros::Time(0)}),
-            retry(0),
-            nanoj_outputs(0)
-        {}
-
-        void init_pdo(int pdo_channel);
-        bool setOperationMode(int8_t targetMode, double timeout = 10.0);
-        bool setMotorState(std::string targetState, double timeout = 10.0);
-        void sendControlWord(uint16_t target_controlword);
-        bool check_operation_mode(int8_t target_mode);
-        void RPDO2_profile_position(int32_t target_position, uint32_t max_velocity);
-        void RPDO4_position_rectified(int32_t profile_position);
-        void RPDO4_jerk(uint32_t profile_jerk);
-        void RPDO4_torque(int16_t target_torque);
-        void TPDO1_incoming(const TPCANRdMsg m);
-        void TPDO2_incoming(const TPCANRdMsg m);
-        void TPDO3_incoming(const TPCANRdMsg m);
-        void TPDO4_incoming(const TPCANRdMsg m);
-        void setOutputs(uint64_t target_outputs);
-        void error_cb(const TPCANRdMsg m);
-    };
-
-    typedef boost::shared_ptr<Device> DevicePtr;
-    typedef boost::shared_ptr<Motor> MotorPtr;
-    typedef boost::shared_ptr<IoModule> IoModulePtr;
-    typedef boost::shared_ptr<Imu> ImuPtr;
-    typedef boost::shared_ptr<Encoder> EncoderPtr;
-
-    class DeviceGroup
-    {
-    private:
-        std::string name_;
-        std::map<std::string, DevicePtr> devices_;
-    public:
-        bool get_device(std::string name, DevicePtr return_device);
-        std::vector<DevicePtr> get_devices();
-
-        DeviceGroup(std::string name):
-            name_(name) {}
-
-        DevicePtr add_device(uint8_t CANid, std::string motor_name);
-    };
-
-    MotorPtr as_motor(DevicePtr ptr);
-    ImuPtr as_imu(DevicePtr ptr);
-    IoModulePtr as_io_module(DevicePtr ptr);
-    EncoderPtr as_encoder(DevicePtr ptr);
-
-    void sdo_incoming(uint8_t CANid, BYTE data[8]);
-    void nmt_incoming(uint8_t CANid, BYTE data[8]);
     void errorword_incoming(uint8_t CANid, BYTE data[8]);
 
+    DWORD CAN_Write_debug(HANDLE h, TPCANMsg *msg);
+
     extern std::map<uint16_t, std::function<void (const TPCANRdMsg m)> > incomingPDOHandlers;
-    extern std::map<uint8_t, DevicePtr> device_id_map;
-    extern std::map<std::string, DevicePtr> device_name_map;
 
     /***************************************************************/
     //			define state machine functions
     /***************************************************************/
 
     void sendNMT(uint8_t CANid, uint8_t command);
-    void output_error(std::string incoming_error = "ERROR");
 
     /***************************************************************/
     //	define init variables and functions
@@ -475,12 +226,12 @@ namespace canopen{
     //		define SDO protocol constants and functions
     /***************************************************************/
 
-    const ObjectKey STATUSWORD(0x6041, 0x0);
-    const ObjectKey ERRORWORD(0x1001, 0x0);
+    const ObjectKey STATUSWORD(0x6041, 0, 16);
+    const ObjectKey ERRORWORD(0x1001, 0, 8);
 
-    const ObjectKey CONTROLWORD(0x6040, 0x0);
-    const ObjectKey MODES_OF_OPERATION(0x6060, 0x0);
-    const ObjectKey MODES_OF_OPERATION_DISPLAY(0x6061, 0x0);
+    const ObjectKey CONTROLWORD(0x6040, 0, 16);
+    const ObjectKey MODES_OF_OPERATION(0x6060, 0, 8);
+    const ObjectKey MODES_OF_OPERATION_DISPLAY(0x6061, 0, 8);
 
     /* Constants for the PDO mapping */
     const int TPDO1_msg = 0x180;
@@ -494,10 +245,10 @@ namespace canopen{
     const int RPDO4_msg = 0x500;
 
     //PDO PARAMETERS
-    const ObjectKey RPDO(0x1400, 0x0);
-    const ObjectKey RPDO_map(0x1600, 0x0);
-    const ObjectKey TPDO(0x1800, 0x0);
-    const ObjectKey TPDO_map(0x1A00, 0x0);
+    const ObjectKey RPDO(0x1400, 0x0, 8);
+    const ObjectKey RPDO_map(0x1600, 0x0, 8);
+    const ObjectKey TPDO(0x1800, 0x0, 8);
+    const ObjectKey TPDO_map(0x1A00, 0x0, 8);
 
     const uint16_t CONTROLWORD_SHUTDOWN = 6;
     const uint16_t CONTROLWORD_QUICKSTOP = 2;

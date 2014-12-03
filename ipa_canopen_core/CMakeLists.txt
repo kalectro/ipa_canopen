@@ -46,7 +46,13 @@ include_directories (include ${catkin_INCLUDE_DIRS})
 ## src ##
 ###########
 add_library(${PROJECT_NAME}
+    src/device.cpp
     src/ipa_canopen_core.cpp
+    src/motor.cpp
+    src/encoder.cpp
+    src/imu.cpp
+    src/io_module.cpp
+    src/device_group.cpp
   )
 set_target_properties(${PROJECT_NAME} PROPERTIES LINKER_LANGUAGE CXX)
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
