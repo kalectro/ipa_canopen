@@ -79,6 +79,10 @@
 #include "schunkErrors.h"
 #include "nanotecErrors.h"
 #include <queue>
+#include <ros/ros.h>
+#include <boost/shared_ptr.hpp>
+#include <boost/make_shared.hpp>
+#include <canopen_interface/IOMessageTrigger.h>
 
 namespace canopen{
     extern std::string baudRate;
@@ -112,599 +116,323 @@ namespace canopen{
     /***************************************************************/
     //		    define classes and structs
     /***************************************************************/
-
-    class Device{
-
-    private:
-
-        uint8_t CANid_;
-        double conversion_factor_;
-        double offset_;
-        std::string NMTState_;
-        std::string deviceFile_;
-        std::string name_;
-        std::string group_;
-
-        std::vector<char> manufacturer_sw_version_;
-        std::vector<char> manufacturer_hw_version_;
-        std::vector<char> manufacturer_device_name_;
-
-        std::vector<uint16_t> vendor_id_;
-        std::vector<uint16_t> product_code_;
-        uint16_t revision_number_;
-
-        bool initialized_;
-        bool nmt_init_;
-        bool driveReferenced_;
-        int64_t actualPos_;		// unit = ticks
-        int32_t actualVel_;		// unit = ticks/sec
-        std::chrono::seconds timeStamp_sec_;
-        std::chrono::nanoseconds timeStamp_nsec_;
-
-        bool hardware_limit_positive_;
-        bool hardware_limit_negative_;
-        bool input3_, input4_;
-
-
-        bool ready_switch_on_;
-        bool switched_on_;
-        bool op_enable_;
-        bool fault_;
-        bool volt_enable_;
-        bool quick_stop_;
-        bool switch_on_disabled_;
-        bool warning_;
-
-        bool mode_specific_;
-        bool remote_;
-        bool target_reached_;
-        bool internal_limit_;
-        bool op_specific_;
-        bool op_specific1_;
-        bool man_specific1_;
-        bool man_specific2_;
-
-        double temperature_;
-
+    class ObjectKey{
     public:
-
-        float polarity;
-
-        std::queue <ProfilePosition> position_commands;
-        int32_t ticks_per_rad_or_meter;
-        uint64_t inputs;
-        uint64_t outputs;
-        int16_t roll, pitch;
-        bool is_motor;
-        bool has_encoder;
-        bool is_io_module;
-        bool is_imu;
-        bool is_encoder;
-        bool use_analog;
-        uint16_t statusword;
-        std::string last_error;
-        uint16_t controlword;
-        int8_t operation_mode_target;
-        int8_t actual_operation_mode;
-        bool was_homed;
-        std::string motor_state;
-        std::string user_code;
-        double max_jerk;
-        std::deque <int16_t> analog1;
-        double analog1_inhibit_time;
-        
-        Device() :
-            CANid_(-1),
-            actualVel_(0),
-            actualPos_(0),
-            initialized_(false),
-            NMTState_("START_UP"),
-            motor_state("SWITCHED_ON_DISABLED"),
-            is_motor(false),
-            is_io_module(false),
-            is_imu(false),
-            is_encoder(false),
-            use_analog(false),
-            roll(0), pitch(0),
-            inputs(0), outputs(0),
-            operation_mode_target(0),
-            actual_operation_mode(0),
-            controlword(0),
-            polarity(1.0),
-            was_homed(false),
-            user_code("none"),
-            max_jerk(1000.0),
-            nmt_init_(false)
-        {
-        }
-
-        Device(uint8_t CANid):
-            CANid_(CANid),
-            actualVel_(0),
-            actualPos_(0),
-            initialized_(false),
-            NMTState_("START_UP"),
-            motor_state("SWITCHED_ON_DISABLED"),
-            is_motor(false),
-            is_io_module(false),
-            is_imu(false),
-            is_encoder(false),
-            use_analog(false),
-            roll(0), pitch(0),
-            inputs(0), outputs(0),
-            operation_mode_target(0),
-            actual_operation_mode(0),
-            controlword(0),
-            polarity(1.0),
-            was_homed(false),
-            user_code("none"),
-            max_jerk(1000.0),
-            nmt_init_(false) {};
-
-        bool getNMTInit(){
-            return nmt_init_;
-        }
-
-        std::string getNMTState(){
-            return NMTState_;
-        }
-
-        std::vector<char> getManufacturerSWVersion(){
-            return manufacturer_sw_version_;
-        }
-
-        std::vector<char> getManufacturerHWVersion(){
-            return manufacturer_hw_version_;
-        }
-
-        std::vector<char> getManufacturerDevName(){
-            return manufacturer_device_name_;
-        }
-
-        std::vector<uint16_t> getVendorID(){
-            return vendor_id_;
-        }
-
-        std::vector<uint16_t> getProdCode(){
-            return product_code_;
-        }
-
-        uint16_t getRevNumber(){
-            return revision_number_;
-        }
-
-        uint8_t getCANid(){
-            return CANid_;
-        }
-
-        double getConversionFactor(){
-            return conversion_factor_;
-        }
-
-        std::string getDeviceFile(){
-            return deviceFile_;
-        }
-        std::string getGroup(){
-            return group_;
-        }
-        std::string getName(){
-            return name_;
-        }
-
-        bool getInitialized(){
-            return initialized_;
-        }
-
-
-        bool getVoltageEnabled(){
-            return volt_enable_;
-        }
-
-        double getDriverTemperature(){
-            return temperature_;
-        }
-
-        bool getReadySwitchOn(){
-            return ready_switch_on_;
-        }
-
-        bool getSwitchOn(){
-            return switched_on_;
-        }
-
-        bool getOpEnabled(){
-            return op_enable_;
-        }
-
-        bool getQuickStop(){
-            return quick_stop_;
-        }
-
-        bool getSwitchOnDisabled(){
-            return switch_on_disabled_;
-        }
-
-        bool getWarning(){
-            return warning_;
-        }
-
-        bool getModeSpecific(){
-            return mode_specific_;
-        }
-
-        bool getRemote(){
-            return remote_;
-        }
-        bool getTargetReached(){
-            return target_reached_;
-        }
-
-        bool getInternalLimits(){
-            return internal_limit_;
-        }
-
-
-        bool getOpSpec0(){
-            return op_specific_;
-        }
-
-        bool getOpSpec1(){
-            return op_specific1_;
-        }
-
-        bool getManSpec1(){
-            return man_specific1_;
-        }
-
-        bool getmanSpec2(){
-            return man_specific2_;
-        }
-
-        bool getNegativeLimit(){
-            return hardware_limit_negative_;
-        }
-
-        bool getPositiveLimit(){
-            return hardware_limit_positive_;
-        }
-
-        bool getInput3(){
-            return input3_;
-        }
-
-        bool getInput4(){
-            return input4_;
-        }
-
-        bool getFault(){
-            return fault_;
-        }
-
-        bool getDriveReferenced(){
-            return driveReferenced_;
-        }
-        double getActualPos(){
-            return actualPos_;
-        }
-
-        double getActualPosScaled(){
-            return (double)actualPos_ / (double)ticks_per_rad_or_meter * (double)polarity;
-        }
-
-        double getActualVel(){
-            return actualVel_;
-        }
-
-        inline uint32_t getTimeStamp_sec(){
-            return timeStamp_sec_.count();
-        }
-
-        inline uint32_t getTimeStamp_nsec(){
-            return timeStamp_nsec_.count();
-        }
-
-        void setActualPos(int64_t pos){
-            actualPos_ = pos;
-        }
-
-        void setConversionFactor(double conversion_factor){
-            conversion_factor_ = conversion_factor;
-        }
-
-        void setActualVel(double vel){
-            actualVel_ = vel;
-        }
-
-        void setManufacturerSWVersion(std::vector<char> ms_version){
-            manufacturer_sw_version_ = ms_version;
-        }
-
-        void setManufacturerHWVersion(std::vector<char> mh_version){
-            manufacturer_hw_version_ = mh_version;
-        }
-
-        void setManufacturerDevName(std::vector<char> dev_name){
-            manufacturer_device_name_ = dev_name;
-        }
-
-        void setVendorID(std::vector<uint16_t> v_id){
-            vendor_id_ = v_id;
-        }
-
-        void setProdCode(std::vector<uint16_t> prod_code){
-            product_code_ = prod_code;
-        }
-
-
-        void setRevNum(uint16_t rev_num){
-            revision_number_ = rev_num;
-        }
-
-
-        void setNMTState(std::string nextState){
-            NMTState_ = nextState;
-        }
-
-
-        void setVoltageEnabled(bool voltage_enabled){
-            volt_enable_ = voltage_enabled;
-        }
-
-        void setDriverTemperature(double temperature){
-            temperature_ = temperature;
-        }
-
-        void setReadySwitchON(bool r_switch_on){
-            ready_switch_on_ = r_switch_on;
-        }
-
-        void setSwitchON(bool switch_on){
-            switched_on_ = switch_on;
-        }
-
-        void setOpEnable(bool op_enable){
-            op_enable_ = op_enable;
-        }
-
-        void setQuickStop(bool quick_stop){
-            quick_stop_ = quick_stop;
-        }
-
-        void setSwitchOnDisable(bool switch_disabled){
-            switch_on_disabled_ = switch_disabled;
-        }
-
-        void setWarning(bool warning){
-            warning_ = warning;
-        }
-
-
-        void setModeSpec(bool modespec){
-            mode_specific_ = modespec;
-        }
-
-
-        void setRemote(bool remote){
-            remote_ = remote;
-        }
-
-        void setManSpec1(bool manspec1){
-            man_specific1_ = manspec1;
-        }
-
-        void setTargetReached(bool target_reached){
-            target_reached_ = target_reached;
-        }
-
-        void setInternalLimits(bool internal_limits){
-            internal_limit_ = internal_limits;
-        }
-
-
-        void setManSpec2(bool manspec2){
-            man_specific2_ = manspec2;
-        }
-
-        void setOpSpec1(bool opspec1){
-            op_specific1_ = opspec1;
-        }
-
-        void setOpSpec0(bool opspec0){
-            op_specific_ = opspec0;
-        }
-
-        void setPositiveLimit(bool pos_limit){
-            hardware_limit_positive_ = pos_limit;
-        }
-
-        void setNegativeLimit(bool neg_limit){
-            hardware_limit_negative_ = neg_limit;
-        }
-
-        void setInput3(bool value){
-            input3_ = value;
-        }
-
-        void setInput4(bool value){
-            input4_ = value;
-        }
-
-        void setNMTInit(bool nmt_limit)
-        {
-            nmt_init_ = nmt_limit;
-        }
-
-        void setFault(bool fault){
-            fault_ = fault;
-        }
-
-        void setInitialized(bool initialized){
-            initialized_ = initialized;
-        }
-
-        void setTimeStamp_sec(std::chrono::seconds timeStamp){
-            timeStamp_sec_ = timeStamp;
-        }
-
-        void setTimeStamp_nsec(std::chrono::nanoseconds timeStamp){
-            timeStamp_nsec_ = timeStamp;
-        }
-    };
-
-    extern std::map<uint8_t, Device> devices;
-
-    class DeviceGroup{
-
-    private:
-
-        std::vector<uint8_t> CANids_;
-        std::vector<std::string> names_;
-        bool initialized_;
-        bool atFirstInit_;
-
-    public:
-
-        DeviceGroup() {};
-
-        DeviceGroup(std::vector<uint8_t> CANids):
-            CANids_(CANids) {};
-
-        DeviceGroup(std::vector<uint8_t> CANids, std::vector<std::string> names):
-            CANids_(CANids),
-            names_(names),
-            initialized_(false),
-            atFirstInit_(true) {};
-
-
-        std::vector<uint8_t> getCANids(){
-            return CANids_;
-        }
-
-        std::vector<std::string> getNames(){
-            return names_;
-        }
-
-        void setInitialized(bool initialized){
-            initialized_ = initialized;
-        }
-
-        bool getInitialized(){
-            return initialized_;
-        }
-
-        bool getFirstInit()
-        {
-            return atFirstInit_;
-        }
-
-        void setFirstInit(bool initialized)
-        {
-            initialized_ = initialized;
-        }
-
-
-        std::vector<double> getActualPos() {
-            std::vector<double> actualPos;
-            for (uint8_t CANid : CANids_)
-                actualPos.push_back(devices[CANid].getActualPos());
-            return actualPos;
-        }
-
-        std::vector<double> getActualVel() {
-            std::vector<double> actualVel;
-            for (auto CANid : CANids_)
-                actualVel.push_back(devices[CANid].getActualVel());
-            return actualVel;
-        }
-    };
-
-    struct SDOkey{
         uint16_t index;
         uint8_t subindex;
+        uint8_t size;
 
-        inline SDOkey(TPCANRdMsg m):
+        ObjectKey(TPCANRdMsg m):
             index((m.Msg.DATA[2] << 8) + m.Msg.DATA[1]),
-            subindex(m.Msg.DATA[3]) {};
+            subindex(m.Msg.DATA[3]),
+            size(4) {}
 
-        inline SDOkey(uint16_t i, uint8_t s):
+        ObjectKey(uint16_t i, uint8_t s, uint8_t object_size = 0x20):
             index(i),
-            subindex(s) {};
+            subindex(s),
+            size(object_size) {}
+
+        ObjectKey() {}
     };
 
     struct SDOanswer{
         uint8_t can_id;
-        uint16_t index;
-        uint8_t subindex;
+        ObjectKey object;
         int32_t value;
         bool aborted;
         bool confirmed;
     };
 
-    /***************************************************************/
-    //		define global variables and functions
-    /***************************************************************/
+    class JointState
+    {
+    public:
+        double position;
+        double velocity;
+        ros::Time stamp;
+        int32_t ticks_per_rad_or_meter;
 
-    inline bool operator<(const SDOkey &a, const SDOkey&b) {
-        return a.index < b.index || (a.index == b.index && a.subindex < b.subindex);
-    }
+        JointState():
+            position(0.0),
+            velocity(0.0),
+            stamp(ros::Time::now()),
+            ticks_per_rad_or_meter(4096)
+        {}
+    };
 
-    inline int32_t rad2mdeg(double phi){
-        return static_cast<int32_t>(round(phi/(2*M_PI)*360000.0));
-    }
+    class Device
+    {
 
-    inline double mdeg2rad(int32_t alpha){
-        return static_cast<double>(static_cast<double>(alpha)/360000.0*2*M_PI);
-    }
+    private:
+        void makeRPDOMapping(int object, uint8_t sync_type);
+        void disableRPDO(int object);
+        void clearRPDOMapping(int object);
+        void enableRPDO(int object);
+
+        void makeTPDOMapping(int object, uint8_t sync_type);
+        void disableTPDO(int object);
+        void clearTPDOMapping(int object);
+        void enableTPDO(int object);
+
+        // test all possible int types allowed to make sure they are built into the library
+        void test_sdo_types();
+
+        double conversion_factor_;
+        double offset_;
+        std::string NMTState_;
+        std::string deviceFile_;
+
+    protected:
+        std::vector<ObjectKey> tpdo_registers_, rpdo_registers_;
+        void pdo_map(int pdo_id, uint8_t tsync_type, uint8_t rsync_type);
+        uint8_t CANid_;
+        uint64_t outputs_;
+
+    public:
+        float polarity;
+        uint64_t inputs;
+        bool is_motor;
+        bool is_io_module;
+        bool is_imu;
+        bool is_encoder;
+        std::string last_error;
+        bool nmt_init;
+        bool initialized;
+        std::string name;
+        SDOanswer requested_sdo;
+        SDOanswer response_sdo;
+        canopen_interface::IOMessageTrigger input_trigger;
+
+        bool init(std::string deviceFile, uint8_t max_pdo_channels = 4);
+        void uploadSDO(ObjectKey sdo);
+        bool sendSDO(ObjectKey sdo, int value, bool verify = true, int32_t trials = 5, double timeout = 1.0);
+
+        Device() :
+            CANid_(-1),
+            initialized(false),
+            NMTState_("START_UP"),
+            is_motor(false),
+            is_io_module(false),
+            is_imu(false),
+            is_encoder(false),
+            inputs(0), outputs_(0),
+            polarity(1.0),
+            nmt_init(false),
+            name("my_motor") {}
+
+        Device(uint8_t CANid, std::string name):
+            CANid_(CANid),
+            initialized(false),
+            NMTState_("START_UP"),
+            is_motor(false),
+            is_io_module(false),
+            is_imu(false),
+            is_encoder(false),
+            inputs(0), outputs_(0),
+            polarity(1.0),
+            nmt_init(false),
+            name(name) {}
+
+        std::string getNMTState(){
+            return NMTState_;
+        }
+
+        std::string getDeviceFile(){
+            return deviceFile_;
+        }
+
+        uint8_t getCANid()
+        {
+            return CANid_;
+        }
+
+        std::string get_name()
+        {
+            return name;
+        }
+
+        void setNMTState(std::string nextState){
+            NMTState_ = nextState;
+        }
+    };
+
+    class Imu : public Device
+    {
+    public:
+        int16_t roll, pitch;
+        Imu():
+            roll(0),
+            pitch(0) {}
+        void TPDO1_incoming(const TPCANRdMsg m);
+    };
+
+    class IoModule : public Device
+    {
+    public:
+        IoModule()
+            {}
+        void TPDO1_incoming(const TPCANRdMsg m);
+    };
+
+    class Encoder : public Device
+    {
+    public:
+        JointState joint_state;
+        Encoder():
+            joint_state() {}
+        void TPDO1_incoming(const TPCANRdMsg m);
+    };
+
+    class Motor : public Device
+    {
+    private:
+        int8_t operation_mode_target_;
+        void controlPDO();
+
+    public:
+        std::string state;
+        bool was_homed;
+        std::string user_code;
+        double max_jerk;
+        std::deque <int16_t> analog0;
+        std::deque <int16_t> analog1;
+        double analog0_inhibit_time;
+        double analog1_inhibit_time;
+        bool has_encoder;
+        bool use_analog;
+        std::queue <ProfilePosition> position_commands;
+        std::pair<bool, ros::Time> ack;
+        int retry;
+        int32_t nanoj_outputs;
+
+        class Status
+        {
+        public:
+            uint16_t statusword;
+            uint16_t controlword;
+            bool ready_switch_on;
+            bool switched_on;
+            bool op_enable;
+            bool fault;
+            bool volt_enable;
+            bool quick_stop;
+            bool switch_on_disabled;
+            bool warning;
+            bool target_reached;
+            bool internal_limit;
+            bool op_specific0;
+            bool op_specific1;
+            bool man_specific0;
+            bool man_specific1;
+            bool mode_specific;
+            bool remote;
+            int8_t actual_operation_mode;
+            ros::Time stamp;
+            std::string state;
+
+            Status():
+                statusword(0),
+                controlword(0),
+                ready_switch_on(false),
+                switched_on(false),
+                op_enable(false),
+                fault(false),
+                volt_enable(false),
+                quick_stop(false),
+                switch_on_disabled(false),
+                warning(false),
+                target_reached(false),
+                internal_limit(false),
+                op_specific0(false),
+                op_specific1(false),
+                man_specific0(false),
+                man_specific1(false),
+                mode_specific(false),
+                remote(false),
+                actual_operation_mode(0),
+                stamp(ros::Time::now()),
+                state("SWITCHED_ON_DISABLED")
+            {}
+        };
+
+        JointState joint_state;
+        Status status;
+
+        Motor():
+            joint_state(),
+            status(),
+            use_analog(false),
+            was_homed(false),
+            user_code("none"),
+            max_jerk(1000.0),
+            operation_mode_target_(0),
+            ack({true, ros::Time(0)}),
+            retry(0),
+            nanoj_outputs(0)
+        {}
+
+        void init_pdo(int pdo_channel);
+        bool setOperationMode(int8_t targetMode, double timeout = 10.0);
+        bool setMotorState(std::string targetState, double timeout = 10.0);
+        void sendControlWord(uint16_t target_controlword);
+        bool check_operation_mode(int8_t target_mode);
+        void RPDO2_profile_position(int32_t target_position, uint32_t max_velocity);
+        void RPDO4_position_rectified(int32_t profile_position);
+        void RPDO4_jerk(uint32_t profile_jerk);
+        void RPDO4_torque(int16_t target_torque);
+        void TPDO1_incoming(const TPCANRdMsg m);
+        void TPDO2_incoming(const TPCANRdMsg m);
+        void TPDO3_incoming(const TPCANRdMsg m);
+        void TPDO4_incoming(const TPCANRdMsg m);
+        void setOutputs(uint64_t target_outputs);
+        void error_cb(const TPCANRdMsg m);
+    };
+
+    typedef boost::shared_ptr<Device> DevicePtr;
+    typedef boost::shared_ptr<Motor> MotorPtr;
+    typedef boost::shared_ptr<IoModule> IoModulePtr;
+    typedef boost::shared_ptr<Imu> ImuPtr;
+    typedef boost::shared_ptr<Encoder> EncoderPtr;
+
+    class DeviceGroup
+    {
+    private:
+        std::string name_;
+        std::map<std::string, DevicePtr> devices_;
+    public:
+        bool get_device(std::string name, DevicePtr return_device);
+        std::vector<DevicePtr> get_devices();
+
+        DeviceGroup(std::string name):
+            name_(name) {}
+
+        DevicePtr add_device(uint8_t CANid, std::string motor_name);
+    };
+
+    MotorPtr as_motor(DevicePtr ptr);
+    ImuPtr as_imu(DevicePtr ptr);
+    IoModulePtr as_io_module(DevicePtr ptr);
+    EncoderPtr as_encoder(DevicePtr ptr);
 
     void sdo_incoming(uint8_t CANid, BYTE data[8]);
+    void nmt_incoming(uint8_t CANid, BYTE data[8]);
     void errorword_incoming(uint8_t CANid, BYTE data[8]);
 
-    extern std::map<std::string, DeviceGroup> deviceGroups;	// DeviceGroup name -> DeviceGroup object
-    extern std::vector<std::thread> managerThreads;
-    extern HANDLE h;
-    extern std::vector<std::string> openDeviceFiles;
-    extern bool atFirstInit;
     extern std::map<uint16_t, std::function<void (const TPCANRdMsg m)> > incomingPDOHandlers;
+    extern std::map<uint8_t, DevicePtr> device_id_map;
+    extern std::map<std::string, DevicePtr> device_name_map;
 
-    extern SDOanswer requested_sdo;
-    extern SDOanswer response_sdo;
     /***************************************************************/
     //			define state machine functions
     /***************************************************************/
 
-    void setNMTState(uint8_t CANid, std::string targetState);
-    bool setMotorState(uint8_t CANid, std::string targetState, double timeout = 10.0);
-    bool setOperationMode(uint8_t CANid, int8_t targetMode, double timeout = 10.0);
+    void sendNMT(uint8_t CANid, uint8_t command);
     void output_error(std::string incoming_error = "ERROR");
-
-    void makeRPDOMapping(uint8_t id, int object, std::vector<std::string> registers, std::vector<int> sizes, u_int8_t sync_type);
-    void disableRPDO(uint8_t id, int object);
-    void clearRPDOMapping(uint8_t id, int object);
-    void enableRPDO(uint8_t id, int object);
-
-    void makeTPDOMapping(uint8_t, int object, std::vector<std::string> registers, std::vector<int> sizes, u_int8_t sync_type);
-    void disableTPDO(uint8_t id, int object);
-    void clearTPDOMapping(uint8_t id, int object);
-    void enableTPDO(uint8_t id, int object);
 
     /***************************************************************/
     //	define init variables and functions
     /***************************************************************/
 
-    extern BYTE protect_msg[];
-
-    extern bool no_position;
-
-    extern std::string operation_mode_param;
-
     bool openConnection(std::string devName, std::string baudrate);
-
-    bool init(std::string deviceFile, std::string chainName, uint8_t CANid, uint8_t max_pdo_channels);
-
-    void pdo_map(std::string chain_name, int pdo_id,
-                 std::vector<std::string> tpdo_registers, std::vector<int> tpdo_sizes, u_int8_t tsync_type,
-                 std::vector<std::string> rpdo_registers, std::vector<int> rpdo_sizes, u_int8_t rsync_type);
-
 
     /***************************************************************/
     //	define NMT constants, variables and functions
@@ -715,30 +443,6 @@ namespace canopen{
     const uint8_t NMT_ENTER_PRE_OPERATIONAL = 0x80;
     const uint8_t NMT_RESET_NODE = 0x81;
     const uint8_t NMT_RESET_COMMUNICATION = 0x82;
-
-    extern TPCANMsg NMTmsg;
-
-    inline void sendNMT(uint8_t CANid, uint8_t command)
-    {
-        TPCANMsg NMTmsg;
-        std::memset(&NMTmsg, 0, sizeof(NMTmsg));
-        NMTmsg.ID = 0;
-        NMTmsg.MSGTYPE = 0x00;
-        NMTmsg.LEN = 2;
-
-        //std::cout << "Sending NMT. CANid: " << (uint16_t)CANid << "\tcommand: " << (uint16_t)command << std::endl;
-        NMTmsg.DATA[0] = command;
-        NMTmsg.DATA[1] = CANid;
-        CAN_Write(h, &NMTmsg);
-    }
-
-    /***************************************************************/
-    //		define NMT error control constants
-    /***************************************************************/
-
-    const SDOkey HEARTBEAT(0x1017,0x0);
-
-    const uint16_t HEARTBEAT_TIME = 1500;
 
     /***************************************************************/
     //		Error Constants for Error Register
@@ -771,38 +475,12 @@ namespace canopen{
     //		define SDO protocol constants and functions
     /***************************************************************/
 
-    const SDOkey STATUSWORD(0x6041, 0x0);
-    const SDOkey ERRORWORD(0x1001, 0x0);
-    const SDOkey MANUFACTURERDEVICENAME(0x1008, 0x0);
-    const SDOkey MANUFACTURERHWVERSION(0x1009, 0x0);
-    const SDOkey MANUFACTURERSOFTWAREVERSION(0x100A, 0x0);
+    const ObjectKey STATUSWORD(0x6041, 0x0);
+    const ObjectKey ERRORWORD(0x1001, 0x0);
 
-    const SDOkey IDENTITYVENDORID(0x1018, 0x01);
-    const SDOkey IDENTITYPRODUCTCODE(0x1018, 0x02);
-    const SDOkey IDENTITYREVNUMBER(0x1018, 0x03);
-
-    /*************************
-     * Specific for schunk hardware
-     ************************/
-    const SDOkey SCHUNKLINE(0x200b, 0x1);
-    const SDOkey SCHUNKDETAIL(0x200b, 0x3);
-    /****************************************
-     */
-
-    const SDOkey CONTROLWORD(0x6040, 0x0);
-    const SDOkey MODES_OF_OPERATION(0x6060, 0x0);
-    const SDOkey MODES_OF_OPERATION_DISPLAY(0x6061, 0x0);
-    const SDOkey SYNC_TIMEOUT_FACTOR(0x200e, 0x0);
-    const SDOkey IP_TIME_UNITS(0x60C2, 0x1);
-    const SDOkey IP_TIME_INDEX(0x60C2, 0x2);
-    const SDOkey ERROR_CODE(0x603F, 0x0);
-    const SDOkey ABORT_CONNECTION(0x6007, 0x0);
-    const SDOkey QUICK_STOP(0x605A, 0x0);
-    const SDOkey SHUTDOWN(0x605B, 0x0);
-    const SDOkey DISABLE_CODE(0x605C, 0x0);
-    const SDOkey HALT(0x605D, 0x0);
-    const SDOkey FAULT(0x605E, 0x0);
-    const SDOkey MODES(0x6060, 0x0);
+    const ObjectKey CONTROLWORD(0x6040, 0x0);
+    const ObjectKey MODES_OF_OPERATION(0x6060, 0x0);
+    const ObjectKey MODES_OF_OPERATION_DISPLAY(0x6061, 0x0);
 
     /* Constants for the PDO mapping */
     const int TPDO1_msg = 0x180;
@@ -815,17 +493,11 @@ namespace canopen{
     const int RPDO3_msg = 0x400;
     const int RPDO4_msg = 0x500;
 
-    //TPDO PARAMETERS
-    const SDOkey TPDO(0x1800, 0x0);
-
-    //RPDO PARAMETERS
-    const SDOkey RPDO(0x1400, 0x0);
-
-    //TPDO MAPPING
-    const SDOkey TPDO_map(0x1A00, 0x0);
-
-    //RPDO MAPPING
-    const SDOkey RPDO_map(0x1600, 0x0);
+    //PDO PARAMETERS
+    const ObjectKey RPDO(0x1400, 0x0);
+    const ObjectKey RPDO_map(0x1600, 0x0);
+    const ObjectKey TPDO(0x1800, 0x0);
+    const ObjectKey TPDO_map(0x1A00, 0x0);
 
     const uint16_t CONTROLWORD_SHUTDOWN = 6;
     const uint16_t CONTROLWORD_QUICKSTOP = 2;
@@ -942,43 +614,11 @@ namespace canopen{
         {8, "CYCLIC_SYNCHRONOUS_POSITION"}
     };
 
-    const int8_t IP_TIME_INDEX_MILLISECONDS = 0xFD;
-    const int8_t IP_TIME_INDEX_HUNDREDMICROSECONDS = 0xFC;
-    const uint8_t SYNC_TIMEOUT_FACTOR_DISABLE_TIMEOUT = 0;
-
     const u_int8_t SYNC_TYPE_ACYCLIC = 0x00;
     const u_int8_t SYNC_TYPE_CYCLIC = 0x01;
     const u_int8_t SYNC_TYPE_MANUFACTURER_SPECIFIC = 0xFE;
     const u_int8_t SYNC_TYPE_ASYNCHRONOUS = 0xFF;
 
-    void uploadSDO(uint8_t CANid, SDOkey sdo);
-    void controlPDO(uint8_t CANid);
-    void sendControlWord(uint8_t CANid, uint16_t target_controlword);
-    void processSingleSDO(uint8_t CANid, std::shared_ptr<TPCANRdMsg> message);
-    void requestDataBlock1(uint8_t CANid);
-    void requestDataBlock2(uint8_t CANid);
-
-    template< class IntType >
-    bool sendSDO(uint8_t CANid, SDOkey sdo, IntType value, bool verify = true, int32_t trials = 5, double timeout = 1.0);
-    // test all possible int types allowed to make sure they are built into the library
-    void test_sdo_types();
-
-
-    /***************************************************************/
-    //		define PDO protocol functions
-    /***************************************************************/
-
-    void initDeviceManagerThread(std::string chainName, std::function<void (std::string)> const& deviceManager);
-    void deviceManager(std::string chainName);
-
-    void RPDO2_outgoing(uint8_t CANid, int32_t target_position, uint32_t max_velocity);
-    void RPDO4_torque(uint8_t CANid, int16_t target_torque);
-    void RPDO4_jerk(uint8_t CANid, uint32_t profile_jerk);
-    void RPDO4_position_rectified(uint8_t CANid, int32_t profile_position);
-    // void TPDO1_incoming_motors(uint8_t CANid, const TPCANRdMsg m);
-    void TPDO2_incoming_motors(uint8_t CANid, const TPCANRdMsg m);
-    void TPDO1_incoming_io(uint8_t CANid, const TPCANRdMsg m);
-    void TPDO1_incoming_imu(uint8_t CANid, const TPCANRdMsg m);
     void EMCY_incoming(uint8_t CANid, const TPCANRdMsg m);
 
     /***************************************************************/
