@@ -264,7 +264,7 @@ bool Device::init(std::string deviceFile)
     }
 
     // Configure PDO channels
-    ROS_WARN_STREAM("mapping PDOs of device " << name);
+    ROS_DEBUG_STREAM("mapping PDOs of device " << name);
     init_pdo();
 
     ros::Duration(0.01).sleep();
@@ -331,7 +331,7 @@ void Device::sdo_incoming(BYTE data[8])
     }
 
     // check if SDO was requested
-    if(sdo_id == requested_sdo.object.index && sdo_id_sub == requested_sdo.object.subindex && CANid_ == requested_sdo.can_id)
+    if(sdo_id == requested_sdo.object.index && sdo_id_sub == requested_sdo.object.subindex)
     {
         //std::cout << "requested sdo received " << response_sdo.value << std::endl;
         requested_sdo.confirmed = true;

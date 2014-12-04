@@ -109,23 +109,27 @@ namespace canopen
             return -1;
         }
         DWORD status = CAN_Status(h);
-        int nreads, nwrites;
-        int counter = 0;
+        static int nreads, nwrites;
+        static int counter;
+        counter = 0;
+
+        status = LINUX_CAN_Extended_Status(h, &nreads, &nwrites);
+        if(nreads > 2 || nwrites > 5)
+        {
+            ROS_WARN_STREAM(nwrites << " Bad message which does not want to be written with id " << std::hex << (int)msg->ID << " Data 0x" << (int)msg->DATA[0] << " 0x" << (int)msg->DATA[1] << " 0x" << (int)msg->DATA[2] << " 0x" << (int)msg->DATA[3] << " 0x" << (int)msg->DATA[4] << " 0x" << (int)msg->DATA[5] << " 0x" << (int)msg->DATA[6] << " 0x" << (int)msg->DATA[7]);
+            ROS_WARN_STREAM("Waiting 500ms for recovery");
+            ros::Duration(0.5).sleep();
+        }
+
         while(status & 0x80)
         {
-            status = LINUX_CAN_Extended_Status(h, &nreads, &nwrites);
-            ROS_ERROR_STREAM("ugly status... waiting... for " << nreads << " reads and " << nwrites << " writes");
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
-            if(counter++ >10)
-            {
-                ROS_ERROR("STATUS STILL UGLY... ABORTING CAN WRITE");
-                canbus_error = true;
-                return -1;
-            }
+            ROS_ERROR_STREAM("STATUS UGLY... we have " << nwrites << " writes waiting... no recovery possible");
+            canbus_error = true;
+            return -1;
         }
         DWORD return_me = LINUX_CAN_Write_Timeout(h, msg, 10000);
         if(return_me != 0)
-            std::cout << "WRITE ERROR " << return_me << std::endl;
+            ROS_ERROR_STREAM("WRITE TIMEOUT ERROR! Code " << return_me);
         return return_me;
     }
 
@@ -223,7 +227,6 @@ namespace canopen
             {
                 if (incomingPDOHandlers.find(m.Msg.ID) != incomingPDOHandlers.end())
                 {
-                    ROS_WARN_STREAM("calling PDO handler " << m.Msg.ID);
                     incomingPDOHandlers[m.Msg.ID](m);
                 }
             }

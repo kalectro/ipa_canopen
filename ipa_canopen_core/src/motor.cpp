@@ -5,7 +5,7 @@
 void Motor::init_pdo()
 {
     uint8_t tsync_type, rsync_type;
-    for(int pdo_channel = 1; pdo_channel <=2 ; pdo_channel++)
+    for(int pdo_channel = 1; pdo_channel <=4 ; pdo_channel++)
     {
         tpdo_registers_.clear();
         rpdo_registers_.clear();
@@ -102,10 +102,9 @@ bool Motor::setOperationMode(int8_t targetMode, double timeout)
 
 bool Motor::setMotorState(std::string targetState, double timeout)
 {
-    ROS_WARN("setMotorState");
     static ros::Time start;
     start = ros::Time::now();
-    // std::cout << "Setting state of motor " << (int)CANid << " to " << targetState << std::endl;
+    ROS_DEBUG_STREAM("Setting state of motor " << (int)CANid_ << " to " << targetState);
     while (state != targetState)
     {
         if((ros::Time::now() - start).toSec() > timeout)
@@ -180,7 +179,7 @@ bool Motor::setMotorState(std::string targetState, double timeout)
             ROS_ERROR_STREAM("I do not know how to change from state " << state << " to state " << targetState);
             return false;
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));  // give motor some time to allow changing state
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));  // give motor some time to allow changing state
     }
     return true;
 }
@@ -259,8 +258,6 @@ void Motor::RPDO4_torque(int16_t target_torque)
 
 void Motor::TPDO1_incoming(const TPCANRdMsg m)
 {
-    ROS_ERROR("asdf");
-    ROS_ERROR_STREAM("TPDO1 incoming for from " << name);
     uint16_t mydata_low = m.Msg.DATA[0];
     uint16_t mydata_high = m.Msg.DATA[1];
 
@@ -313,22 +310,12 @@ void Motor::TPDO1_incoming(const TPCANRdMsg m)
 
 void Motor::TPDO2_incoming(const TPCANRdMsg m)
 {
-    ROS_INFO_STREAM("TPDO2 incoming from " << name);
     int32_t ticks = m.Msg.DATA[0] + (m.Msg.DATA[1] << 8) + (m.Msg.DATA[2] << 16) + (m.Msg.DATA[3] << 24);
     int16_t ticks_per_sec = m.Msg.DATA[4] + (m.Msg.DATA[5] << 8);
 
-    joint_state.position = (double)ticks / joint_state.ticks_per_rad_or_meter * polarity;
+    joint_state.position = (double)ticks         / joint_state.ticks_per_rad_or_meter * polarity;
     joint_state.velocity = (double)ticks_per_sec / joint_state.ticks_per_rad_or_meter * polarity;
     joint_state.stamp = ros::Time::now();
-}
-
-void Motor::TPDO4_incoming(const TPCANRdMsg m)
-{
-    int32_t ticks = m.Msg.DATA[0] + (m.Msg.DATA[1] << 8) + (m.Msg.DATA[2] << 16) + (m.Msg.DATA[3] << 24);
-    joint_state.position = (double)ticks / joint_state.ticks_per_rad_or_meter * polarity;
-    joint_state.stamp = ros::Time::now();
-
-    nanoj_outputs = m.Msg.DATA[4] + (m.Msg.DATA[5] << 8) + (m.Msg.DATA[6] << 16) + (m.Msg.DATA[7] << 24);
 }
 
 void Motor::TPDO3_incoming(const TPCANRdMsg m)
@@ -343,6 +330,15 @@ void Motor::TPDO3_incoming(const TPCANRdMsg m)
     }
     analog0.push_back(m.Msg.DATA[0] + (m.Msg.DATA[1] << 8));
     analog1.push_back(m.Msg.DATA[2] + (m.Msg.DATA[3] << 8));
+}
+
+void Motor::TPDO4_incoming(const TPCANRdMsg m)
+{
+    int32_t ticks = m.Msg.DATA[0] + (m.Msg.DATA[1] << 8) + (m.Msg.DATA[2] << 16) + (m.Msg.DATA[3] << 24);
+    joint_state.position = (double)ticks / joint_state.ticks_per_rad_or_meter * polarity;
+    joint_state.stamp = ros::Time::now();
+
+    nanoj_outputs = m.Msg.DATA[4] + (m.Msg.DATA[5] << 8) + (m.Msg.DATA[6] << 16) + (m.Msg.DATA[7] << 24);
 }
 
 void Motor::RPDO2_profile_position(int32_t target_position, uint32_t max_velocity)
