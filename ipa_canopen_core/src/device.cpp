@@ -76,27 +76,27 @@ void Device::disableRPDO(int object)
     switch(object)
     {
         case 0:
-            data = (canopen::RPDO1_msg + CANid_)  + (0x00 << 16) + (0x80 << 24);
+            data = (RPDO1_msg + CANid_)  + (0x00 << 16) + (0x80 << 24);
             break;
         case 1:
-            data = (canopen::RPDO2_msg + CANid_)  + (0x00 << 16) + (0x80 << 24);
+            data = (RPDO2_msg + CANid_)  + (0x00 << 16) + (0x80 << 24);
             break;
         case 2:
-            data = (canopen::RPDO3_msg + CANid_)  + (0x00 << 16) + (0x80 << 24);
+            data = (RPDO3_msg + CANid_)  + (0x00 << 16) + (0x80 << 24);
             break;
         case 3:
-            data = (canopen::RPDO4_msg + CANid_)  + (0x00 << 16) + (0x80 << 24);
+            data = (RPDO4_msg + CANid_)  + (0x00 << 16) + (0x80 << 24);
             break;
         default:
             std::cout << "BAD OBJECT NUMBER IN disableRPDO! Number is " << object << std::endl;
             return;
     }
-    sendSDO(ObjectKey(RPDO.index+object,1,32), data);
+    sendSDO(ObjectKey(RPDO+object,1,32), data);
 }
 
 void Device::clearRPDOMapping(int object)
 {
-    sendSDO(ObjectKey(RPDO_map.index+object,0,8), 0);
+    sendSDO(ObjectKey(RPDO_map+object,0,8), 0);
 }
 
 void Device::makeRPDOMapping(int object, uint8_t sync_type)
@@ -105,12 +105,12 @@ void Device::makeRPDOMapping(int object, uint8_t sync_type)
     for(counter=0; counter < rpdo_registers_.size();counter++)
     {
         uint32_t data = rpdo_registers_[counter].size + (rpdo_registers_[counter].subindex << 8) + (rpdo_registers_[counter].index << 16);
-        sendSDO(ObjectKey(RPDO_map.index + object, counter + 1, 32), data);
+        sendSDO(ObjectKey(RPDO_map + object, counter + 1, 32), data);
     }
 
-    sendSDO(ObjectKey(RPDO.index+object, 2, 8), sync_type);
+    sendSDO(ObjectKey(RPDO+object, 2, 8), sync_type);
     ROS_DEBUG_STREAM("Mapping " << std::hex << counter << " objects at CANid " << (int)CANid_ << " to RPDO" << object + 1);
-    sendSDO(ObjectKey(RPDO_map.index+object,0,8), counter);
+    sendSDO(ObjectKey(RPDO_map+object,0,8), counter);
 }
 
 void Device::enableRPDO(int object)
@@ -134,7 +134,7 @@ void Device::enableRPDO(int object)
             ROS_ERROR("Wrong object number in enableRPDO");
             return;
     }
-    sendSDO(ObjectKey(RPDO.index+object, 1, 32), data);
+    sendSDO(ObjectKey(RPDO+object, 1, 32), data);
 }
 
 void Device::disableTPDO(int object)
@@ -158,12 +158,12 @@ void Device::disableTPDO(int object)
             std::cout << "Incorrect object for mapping" << std::endl;
             return;
     }
-    sendSDO(ObjectKey(TPDO.index+object,1,32), data);
+    sendSDO(ObjectKey(TPDO+object,1,32), data);
 }
 
 void Device::clearTPDOMapping(int object)
 {
-    sendSDO(ObjectKey(TPDO_map.index+object,0,8), 0);
+    sendSDO(ObjectKey(TPDO_map+object,0,8), 0);
 }
 
 void Device::makeTPDOMapping(int object, uint8_t sync_type)
@@ -172,18 +172,18 @@ void Device::makeTPDOMapping(int object, uint8_t sync_type)
     for(counter = 0; counter < tpdo_registers_.size(); counter++)
     {
         uint32_t data = tpdo_registers_[counter].size + (tpdo_registers_[counter].subindex << 8) + (tpdo_registers_[counter].index << 16);
-        sendSDO(ObjectKey(TPDO_map.index + object, counter + 1, 32), data);
+        sendSDO(ObjectKey(TPDO_map + object, counter + 1, 32), data);
     }
 
-    sendSDO(ObjectKey(TPDO.index+object,2,8), sync_type);
+    sendSDO(ObjectKey(TPDO+object,2,8), sync_type);
     ROS_DEBUG_STREAM("Mapping " << std::hex << counter << " objects at CANid " << (int)CANid_ << " to TPDO" << object + 1);
-    sendSDO(ObjectKey(TPDO.index+object,3,16), 10);
+    sendSDO(ObjectKey(TPDO+object,3,16), 10);
 
     if(device_type == "imu" || device_type == "encoder") // send cyclic every 10ms
     {
-        sendSDO(ObjectKey(TPDO.index+object,5,16), 10);
+        sendSDO(ObjectKey(TPDO+object,5,16), 10);
     }
-    sendSDO(ObjectKey(TPDO_map.index+object,0,8), counter);
+    sendSDO(ObjectKey(TPDO_map+object,0,8), counter);
 }
 
 void Device::enableTPDO(int object)
@@ -207,7 +207,7 @@ void Device::enableTPDO(int object)
             std::cout << "Incorrect object number handed over to enableTPDO" << std::endl;
             return;
     }
-    sendSDO(ObjectKey(TPDO.index+object,1,32), data);
+    sendSDO(ObjectKey(TPDO+object,1,32), data);
 }
 
 void Device::pdo_map(int pdo_id, uint8_t tsync_type, uint8_t rsync_type)
@@ -247,14 +247,14 @@ bool Device::init(std::string deviceFile)
             canopen::initListenerThread(canopen::defaultListener);
             canopen::openDeviceFiles.push_back(deviceFile);
         }
-        sendNMT(0x00, canopen::NMT_RESET_COMMUNICATION);
+        sendNMT(NMT_RESET_COMMUNICATION, true);
     }
 
     ros::Time start = ros::Time::now();
 
     while(!nmt_init)
     {
-        if((ros::Time::now() - start).toSec() > 10.0)
+        if((ros::Time::now() - start).toSec() > 5.0)
         {
             ROS_ERROR_STREAM("Node: " << (int)CANid_ << " is not ready for operation. Please check for potential problems.");
             return false;
@@ -268,9 +268,12 @@ bool Device::init(std::string deviceFile)
     init_pdo();
 
     ros::Duration(0.01).sleep();
-    sendNMT(CANid_, canopen::NMT_START_REMOTE_NODE);
+    sendNMT(NMT_START_REMOTE_NODE);
     // std::cout << std::hex << "Initialized the PDO mapping for Node: " << (int)CANid << std::endl;
     initialized = true;
+
+    set_objects();
+
     return true;
 }
 
@@ -341,25 +344,58 @@ void Device::sdo_incoming(BYTE data[8])
 
 void Device::nmt_incoming(BYTE data[8])
 {
-    if(device_id_map.find(CANid_) != device_id_map.end())
+    if(nmt_state.find(data[0])->second == "Bootup")
     {
-        // std::cout << "Found " << (u_int16_t)search->first << "\n";
-        if(nmt_state.find(data[0])->second == "Bootup")
+        // catch second bootup message after device was initialized
+        if(nmt_init && initialized)
         {
-            // catch second bootup message after device was initialized
-            if(nmt_init && initialized)
-            {
-                ROS_ERROR_STREAM("RECEIVED SECOND BOOTUP FROM CAN ID " << (int)CANid_ << "  THIS IS BAD!");
-            }
-            else
-            {
-                nmt_init = true;
-                ROS_INFO_STREAM("Bootup from CANid " << std::hex << (int)CANid_);
-            }
+            ROS_ERROR_STREAM("RECEIVED SECOND BOOTUP FROM CAN ID " << (int)CANid_ << "  THIS IS BAD!");
         }
+        else
+        {
+            nmt_init = true;
+            ROS_INFO_STREAM("Bootup from CANid " << std::hex << (int)CANid_);
+        }
+    }
+}
+
+bool Device::set_sdos(ObjectKey sdo, std::string param)
+{
+    int temp;
+    if (n_p->getParam(param, temp))
+    {
+        if(sendSDO(sdo, temp))
+            return true;
+        else
+            return false;
     }
     else
     {
-        ROS_WARN_STREAM("Received bootup from node " << std::hex << (int)CANid_ << " which I do not know what to do with...ignoring");
+        ROS_DEBUG_STREAM("Param " << param << " is not available...");
+        return false;
     }
 }
+
+void Device::sendNMT(uint8_t command, bool send_to_all)
+{
+    TPCANMsg NMTmsg;
+    std::memset(&NMTmsg, 0, sizeof(NMTmsg));
+    NMTmsg.ID = 0;
+    NMTmsg.MSGTYPE = 0x00;
+    NMTmsg.LEN = 2;
+    NMTmsg.DATA[0] = command;
+    if(send_to_all)
+        NMTmsg.DATA[1] = 0;
+    else
+        NMTmsg.DATA[1] = CANid_;
+    CAN_Write_debug(h, &NMTmsg);
+}
+
+Device::Device(uint8_t CANid, std::string name, std::string type):
+    CANid_(CANid),
+    initialized(false),
+    device_type(type),
+    inputs(0), outputs_(0),
+    polarity(1.0),
+    nmt_init(false),
+    name(name) {}

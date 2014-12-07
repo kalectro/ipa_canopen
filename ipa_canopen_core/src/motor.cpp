@@ -4,6 +4,24 @@
 
 void Motor::init_pdo()
 {
+    incomingPDOHandlers[ COB_PDO1_TX + CANid_ ] = [this](const TPCANRdMsg m) { TPDO1_incoming( m ); };
+    incomingPDOHandlers[ COB_EMERGENCY + CANid_ ] = [this](const TPCANRdMsg m) { error_cb( m ); };
+
+    int read_int;
+    n_p->param(prefix_ + name + "/motor_params/has_encoder", read_int, 1);
+    has_encoder = read_int;
+
+    // check if analog inputs are supposed to be used
+    if(n_p->getParam(prefix_ + name + "/analog_params/publish_inhibit_time", read_int))
+    {
+        use_analog = true;
+        analog0_inhibit_time = (double)read_int/1000.0;
+        n_p->param(prefix_ + name + "/analog_params/filter_depth", read_int, 20);
+        analog0.resize(read_int);
+        incomingPDOHandlers[ COB_PDO3_TX + CANid_ ] = [this](const TPCANRdMsg m) { TPDO3_incoming( m ); };
+        ROS_INFO_STREAM("Publishing analog values for motor " << name << " with filter depth " << analog0.size());
+    }
+
     uint8_t tsync_type, rsync_type;
     for(int pdo_channel = 1; pdo_channel <=4 ; pdo_channel++)
     {
@@ -67,6 +85,162 @@ void Motor::init_pdo()
         }
         pdo_map(pdo_channel, tsync_type, rsync_type);
     }
+}
+
+void Motor::set_objects()
+{
+    // Set Profile Acceleration
+    set_sdos(ObjectKey(0x6083,0x00,0x20), prefix_ + name + "/drive_params/acceleration");
+
+    // Set Profile Deceleration
+    set_sdos(ObjectKey(0x6084,0x00,0x20), prefix_ + name + "/drive_params/deceleration");
+
+    // Load gear ratio
+    n_p->param(prefix_ + name + "/drive_params/ticks_per_rad_or_meter", joint_state.ticks_per_rad_or_meter, 4096);
+
+    // Set Max Acceleration
+    set_sdos(ObjectKey(0x60c5,0x00,0x20), prefix_ + name + "/drive_params/max_acceleration");
+
+    // Set Max Deceleration
+    set_sdos(ObjectKey(0x60c6,0x00,0x20), prefix_ + name + "/drive_params/max_deceleration");
+
+    // Closed Loop Control
+    set_sdos(ObjectKey(0x3202,0x00,0x20), prefix_ + name + "/motor_params/motor_drive_submode");
+
+    // Set Pole Pairs
+    set_sdos(ObjectKey(0x2030,0x00,0x20), prefix_ + name + "/motor_params/pole_pairs");
+
+    // Set Encoder Resolution
+    set_sdos(ObjectKey(0x2052,0x00,0x20),  prefix_ + name + "/motor_params/encoder_resolution");
+    set_sdos(ObjectKey(0x608F,0x01,0x20), prefix_ + name + "/motor_params/encoder_resolution");
+
+    // Set Peak Current [mA]
+    set_sdos(ObjectKey(0x2031,0x00,0x20), prefix_ + name + "/motor_params/peak_current");
+
+    // Set Peak Current Maximum Duration [ms]
+    set_sdos(ObjectKey(0x203B,0x02,0x20), prefix_ + name + "/motor_params/peak_duration");
+
+    // Set Nominal Current [mA]
+    set_sdos(ObjectKey(0x203B,0x01,0x20), prefix_ + name + "/motor_params/nominal_current");
+
+    // Set Max Torque [1/1000 * peak current]
+    set_sdos(ObjectKey(0x6072,0x00,0x10), prefix_ + name + "/drive_params/max_torque");
+
+    // Set Torque Slope
+    set_sdos(ObjectKey(0x6087,0x00,0x20), prefix_ + name + "/drive_params/torque_slope");
+
+    // Set Alignment
+    set_sdos(ObjectKey(0x2050,0x00,0x20), prefix_ + name + "/motor_params/alignment");
+    set_sdos(ObjectKey(0x2050,0x00,0x20), prefix_ + name + "/alignment");
+
+    // Set Encoder Configuration (Voltage select or switch between single-ended or diff encoder
+    set_sdos(ObjectKey(0x2059, 0x00,0x20), prefix_ + name + "/motor_params/encoder_configuration");
+
+    n_p->param<double>(prefix_ + name + "/drive_params/jerk", max_jerk, 1000.0);
+
+    // check if user program is used
+    n_p->param<std::string>(prefix_ + name + "/user_code", user_code, "none");
+    if(user_code == "jerk_pdo")
+    {
+        sendSDO(ObjectKey(0x2300,0x00,0x20), 1);
+        ROS_WARN("Starting User Code Jerk");
+    }
+    else
+    {
+        // Set S-Curve position profile and limit jerk
+        sendSDO(ObjectKey(0x60A4,1,0x20), max_jerk);
+        sendSDO(ObjectKey(0x60A4,2,0x20), max_jerk);
+
+        // work-around for inconsistent jerk SDOs
+        int max_pdos;
+        n_p->param(prefix_ + name + "/motor_params/pdo_channels", max_pdos, 4);
+        if(max_pdos == 4)
+        {
+            sendSDO(ObjectKey(0x60A4,3,0x20), max_jerk);
+            sendSDO(ObjectKey(0x60A4,4,0x20), max_jerk);
+        }
+    }
+    if(user_code == "flyref")
+    {
+        if(set_sdos(ObjectKey(0x2400,2,0x20), prefix_ + name + "/flyref_ticks_per_mark") == false)
+        {
+            ROS_ERROR_STREAM("You must set parameter motors/" << name << "/flyref_ticks_per_mark if using flyref");
+            return;
+        }
+        sendSDO(ObjectKey(0x2300,0x00,0x20), 1);
+        incomingPDOHandlers[ COB_PDO4_TX + CANid_ ] = [this](const TPCANRdMsg m) { TPDO4_incoming( m ); };
+        ROS_WARN("Starting User Code FlyRef");
+    }
+    else
+    {
+        incomingPDOHandlers[ COB_PDO2_TX + CANid_ ] = [this](const TPCANRdMsg m) { TPDO2_incoming( m ); };
+    }
+
+    set_sdos(ObjectKey(0x6086,0,0x10), prefix_ + name + "/drive_params/motion_profile");
+
+    // Compensate Polepair Count
+    set_sdos(ObjectKey(0x2060,0x00,0x20), prefix_ + name + "/drive_params/polepair_compensation");
+
+    // Set PID Parameters
+    set_sdos(ObjectKey(0x3210,0x01,0x20), prefix_ + name + "/control_params/position_p");
+    set_sdos(ObjectKey(0x3210,0x02,0x20), prefix_ + name + "/control_params/position_i");
+    set_sdos(ObjectKey(0x3210,0x03,0x20), prefix_ + name + "/control_params/velocity_p");
+    set_sdos(ObjectKey(0x3210,0x04,0x20), prefix_ + name + "/control_params/velocity_i");
+    set_sdos(ObjectKey(0x3210,0x05,0x20), prefix_ + name + "/control_params/current_field_p");
+    set_sdos(ObjectKey(0x3210,0x06,0x20), prefix_ + name + "/control_params/current_field_i");
+    set_sdos(ObjectKey(0x3210,0x07,0x20), prefix_ + name + "/control_params/current_torque_p");
+    set_sdos(ObjectKey(0x3210,0x08,0x20), prefix_ + name + "/control_params/current_torque_i");
+
+    // Profile Position Tolerance Window
+    set_sdos(ObjectKey(0x6067,0,0x20), prefix_ + name + "/control_params/position_tolerance");
+
+    set_sdos(ObjectKey(0x3240,0x01,0x20), prefix_ + name + "/homing_params/special_ios");
+    set_sdos(ObjectKey(0x3240,0x02,0x20), prefix_ + name + "/homing_params/inverted_ios");
+    set_sdos(ObjectKey(0x6098,0x00,0x08), prefix_ + name + "/homing_params/homing_method");
+    set_sdos(ObjectKey(0x6099,0x01,0x20), prefix_ + name + "/homing_params/homing_speed");
+
+    set_sdos(ObjectKey(0x2010,0x01,0x08), prefix_ + name + "/homing_params/input_pin");
+    set_sdos(ObjectKey(0x2010,0x02,0x08), prefix_ + name + "/homing_params/input_pin_inverted");
+
+    // Quick Stop Action
+    set_sdos(ObjectKey(0x605A,0x00,0x10), prefix_ + name + "/drive_params/quick_stop_action");
+
+    // Check polarity (turning direction of motor)
+    set_sdos(ObjectKey(0x607E,0x00,0x08), prefix_ + name + "/polarity");
+    int pol;
+    n_p->param(prefix_ + name + "/polarity", pol, 1);
+    polarity = ((pol>>7)&&1)?-1:1; // set polarity to -1 if 7th bit is set
+
+    // internal limits
+    // set_sdos(ObjectKey(0x607d,0x01), prefix_ + name + "/soft_limit_min");
+    // set_sdos(ObjectKey(0x607b,0x02), prefix_ + name + "/soft_limit_max");
+
+    // home offset in ticks
+    set_sdos(ObjectKey(0x607C,0x00,0x20), prefix_ + name + "/home_offset");
+
+    // maximal percentage of current in open loop
+    set_sdos(ObjectKey(0x2004,0x01,0x08), prefix_ + name + "/motor_params/max_current_percentage");
+
+    // Maximum current in percent for old nanotec drives
+    set_sdos(ObjectKey(0x2004,0x01,0x08), prefix_ + name + "/drive_params/max_current_percent");
+
+    // Reduced current when motor is not moving for new nanotec drives
+    set_sdos(ObjectKey(0x2037,0x00,0x20), prefix_ + name + "/drive_params/reduced_current");
+
+    // Enable closed loop mode for old nanotec drives
+    set_sdos(ObjectKey(0x2001,0x00,0x08), prefix_ + name + "/motor_params/enable_closed_loop");
+
+    // Brake setting
+    set_sdos(ObjectKey(0x2038,0x01,0x20), prefix_ + name + "/drive_params/brake_activation_delay_ms");
+    set_sdos(ObjectKey(0x2038,0x02,0x20), prefix_ + name + "/drive_params/brake_current_deactivation_delay_ms");
+    set_sdos(ObjectKey(0x2038,0x03,0x20), prefix_ + name + "/drive_params/brake_deactivation_delay_ms");
+    set_sdos(ObjectKey(0x2038,0x04,0x20), prefix_ + name + "/drive_params/brake_current_activation_delay_ms");
+
+    // Limit Switch Tolerance
+    set_sdos(ObjectKey(0x2056,0x00,0x20), prefix_ + name + "/limit_switch_tolerance");
+
+    // Define upper voltage after which over voltage error should be triggered
+    set_sdos(ObjectKey(0x2034, 0x00,0x20), prefix_ + name + "/motor_params/overvoltage");
 }
 
 bool Motor::setOperationMode(int8_t targetMode, double timeout)
@@ -397,7 +571,7 @@ void Motor::RPDO4_position_rectified(int32_t profile_position)
 
 void Motor::error_cb(const TPCANRdMsg m)
 {
-    ROS_ERROR_STREAM(" ERROR: " << last_error);
+    ROS_ERROR_STREAM("Todo: write comprehensive error message");
 }
 
 MotorPtr as_motor(DevicePtr ptr)

@@ -11,6 +11,7 @@ class Motor : public Device
 {
 private:
     int8_t operation_mode_target_;
+    std::string prefix_;
     void controlPDO();
 
 public:
@@ -85,6 +86,7 @@ public:
     Motor(uint8_t CANid, std::string name):
         Device(CANid, name, "motor"),
         state("SWITCHED_ON_DISABLED"),
+        prefix_("motors/"),
         joint_state(),
         status(),
         use_analog(false),
@@ -98,6 +100,7 @@ public:
     {}
 
     void init_pdo();
+    void set_objects();
     bool setOperationMode(int8_t targetMode, double timeout = 10.0);
     bool setMotorState(std::string targetState, double timeout = 10.0);
     void sendControlWord(uint16_t target_controlword);
@@ -117,5 +120,18 @@ public:
 typedef boost::shared_ptr<Motor> MotorPtr;
 
 MotorPtr as_motor(DevicePtr ptr);
+
+static const ObjectKey STATUSWORD(0x6041, 0, 16);
+
+static const uint16_t CONTROLWORD_SHUTDOWN = 6;
+static const uint16_t CONTROLWORD_QUICKSTOP = 2;
+static const uint16_t CONTROLWORD_SWITCH_ON = 7;
+static const uint16_t CONTROLWORD_ENABLE_OPERATION = 15;
+static const uint16_t CONTROLWORD_ENABLE_MOVEMENT = 31;
+static const uint16_t CONTROLWORD_DISABLE_OPERATION = 7;
+static const uint16_t CONTROL_WORD_DISABLE_VOLTAGE = 0x7D;
+static const uint16_t CONTROLWORD_FAULT_RESET_0 = 0x00;
+static const uint16_t CONTROLWORD_FAULT_RESET_1 = 0x80;
+static const uint16_t CONTROLWORD_HALT = 0x100;
 
 #endif

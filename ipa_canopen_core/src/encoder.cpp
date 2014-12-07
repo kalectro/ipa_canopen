@@ -13,6 +13,8 @@ void Encoder::TPDO1_incoming(const TPCANRdMsg m)
 
 void Encoder::init_pdo()
 {
+    incomingPDOHandlers[ COB_PDO1_TX + CANid_ ] = [this](const TPCANRdMsg m) { TPDO1_incoming( m ); };
+
     uint8_t tsync_type, rsync_type;
     for(int pdo_channel = 1; pdo_channel <=2 ; pdo_channel++)
     {
@@ -35,6 +37,15 @@ void Encoder::init_pdo()
         }
         pdo_map(pdo_channel, tsync_type, rsync_type);
     }
+}
+
+void Encoder::set_objects()
+{
+    // Load gear ratio
+    n_p->param("encoders/" + get_name() + "/ticks_per_rad_or_meter", joint_state.ticks_per_rad_or_meter, 4096);
+
+    // Activate velocity measurements
+    sendSDO( ObjectKey(0x3010,0x01,0x08), 1);
 }
 
 EncoderPtr as_encoder(DevicePtr ptr)

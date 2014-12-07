@@ -78,14 +78,12 @@ namespace canopen
     HANDLE h;
     std::vector<std::string> openDeviceFiles;
     bool atFirstInit=true;
+    boost::shared_ptr<ros::NodeHandle> n_p;
 
     std::map<uint16_t, std::function<void (const TPCANRdMsg m)> > incomingPDOHandlers;
     std::map<uint16_t, std::function<void (const TPCANRdMsg m)> > incomingEMCYHandlers;
 
     std::string operation_mode_param;
-
-    ros::Time start, end;
-    ros::Duration elapsed_seconds;
 
     /***************************************************************/
     //		define init sequence
@@ -133,19 +131,7 @@ namespace canopen
         return return_me;
     }
 
-    void sendNMT(uint8_t CANid, uint8_t command)
-    {
-        TPCANMsg NMTmsg;
-        std::memset(&NMTmsg, 0, sizeof(NMTmsg));
-        NMTmsg.ID = 0;
-        NMTmsg.MSGTYPE = 0x00;
-        NMTmsg.LEN = 2;
-        NMTmsg.DATA[0] = command;
-        NMTmsg.DATA[1] = CANid;
-        CAN_Write_debug(h, &NMTmsg);
-    }
-
-    void EMCY_incoming(uint8_t CANid, const TPCANRdMsg m)
+    void default_EMCY_incoming(uint8_t CANid, const TPCANRdMsg m)
     {
         std::stringstream error_stream;
         uint16_t error_code =  m.Msg.DATA[0] +  (m.Msg.DATA[1] << 8);
@@ -153,7 +139,7 @@ namespace canopen
         uint8_t error_number = m.Msg.DATA[3];
 
 
-        error_stream << std::hex << "ERROR from CANid " << (int)CANid << ": " << NanotecErrorNumber[error_number] << "   ERROR CATEGORIES: ";
+        error_stream << std::hex << "EMCY from CANid " << (int)CANid << "! Error number: " << (int)error_number << " categories: ";
 
         if ( error_class & EMC_k_1001_GENERIC )
             error_stream << "generic ";
@@ -172,16 +158,7 @@ namespace canopen
         if ( error_class & EMC_k_1001_MANUFACTURER)
             error_stream << "manufacturer specific ";
 
-        auto iter = error_codes.find(error_code);
-        error_stream << " Error Code: ";
-        if ( iter != error_codes.end())
-        {
-            error_stream << iter->second;
-        }
-        else
-        {
-            error_stream << std::hex << error_code;
-        }
+        error_stream << " code: " << std::hex << error_code;
 
         ROS_ERROR_STREAM(error_stream);
     }
@@ -212,9 +189,10 @@ namespace canopen
             // incoming EMCY
             else if (m.Msg.ID >= COB_EMERGENCY && m.Msg.ID < COB_TIME_STAMP)
             {
-                EMCY_incoming(m.Msg.ID - COB_EMERGENCY, m);
                 if (incomingPDOHandlers.find(m.Msg.ID) != incomingPDOHandlers.end())
                     incomingPDOHandlers[m.Msg.ID](m);
+                else
+                    default_EMCY_incoming(m.Msg.ID - COB_EMERGENCY, m);
             }
 
             // incoming TIME
@@ -239,6 +217,10 @@ namespace canopen
                 {
                     device_id_map[id]->sdo_incoming(m.Msg.DATA);
                 }
+                else
+                {
+                    ROS_ERROR_STREAM("Received SDO message from node 0x" << std::hex << id << " which is not part of known devices");
+                }
             }
 
             // incoming NMT heartbeat
@@ -249,8 +231,11 @@ namespace canopen
                 {
                     device_id_map[id]->nmt_incoming(m.Msg.DATA);
                 }
+                else
+                {
+                    ROS_WARN_STREAM("Received bootup from node 0x" << std::hex << id << " which I do not know what to do with...ignoring");
+                }
             }
-
             else
             {
                 ROS_ERROR_STREAM("Received unknown message with id 0x" << std::hex << m.Msg.ID << " and Data 0x" << (int)m.Msg.DATA[0] << " 0x" << (int)m.Msg.DATA[1] << " 0x" << (int)m.Msg.DATA[2] << " 0x" << (int)m.Msg.DATA[3] << " 0x" << (int)m.Msg.DATA[4] << " 0x" << (int)m.Msg.DATA[5] << " 0x" << (int)m.Msg.DATA[6] << " 0x" << (int)m.Msg.DATA[7] );

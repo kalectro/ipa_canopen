@@ -14,6 +14,8 @@ void Imu::TPDO1_incoming(const TPCANRdMsg m)
 
 void Imu::init_pdo()
 {
+    incomingPDOHandlers[ COB_PDO1_TX + CANid_ ] = [this](const TPCANRdMsg m) { TPDO1_incoming( m ); };
+
     uint8_t tsync_type, rsync_type;
     for(int pdo_channel = 1; pdo_channel <=4 ; pdo_channel++)
     {
@@ -40,4 +42,13 @@ void Imu::init_pdo()
         }
         pdo_map(pdo_channel, tsync_type, rsync_type);
     }
+}
+
+void Imu::set_objects()
+{
+    // Set Filter Type
+    set_sdos(ObjectKey(0x3000,0x01,0x10), "imu_modules/" + get_name() + "/filter_type");
+
+    // Set Filter Frequency
+    set_sdos(ObjectKey(0x3000,0x02,0x10), "imu_modules/" + get_name() + "/filter_frequency");
 }

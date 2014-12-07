@@ -16,6 +16,7 @@ public:
         pitch(0) {}
     void TPDO1_incoming(const TPCANRdMsg m);
     void init_pdo();
+    void set_objects();
 };
 
 typedef boost::shared_ptr<Imu> ImuPtr;
