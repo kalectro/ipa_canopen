@@ -112,11 +112,17 @@ namespace canopen
         counter = 0;
 
         status = LINUX_CAN_Extended_Status(h, &nreads, &nwrites);
-        if(nreads > 2 || nwrites > 5)
+        if(nwrites > 31)
         {
-            ROS_WARN_STREAM(nwrites << " Bad message which does not want to be written with id " << std::hex << (int)msg->ID << " Data 0x" << (int)msg->DATA[0] << " 0x" << (int)msg->DATA[1] << " 0x" << (int)msg->DATA[2] << " 0x" << (int)msg->DATA[3] << " 0x" << (int)msg->DATA[4] << " 0x" << (int)msg->DATA[5] << " 0x" << (int)msg->DATA[6] << " 0x" << (int)msg->DATA[7]);
+            ROS_WARN_STREAM("Write queue size " << nwrites <<". Waiting for message " << std::hex << (int)msg->ID << " Data 0x" << (int)msg->DATA[0] << " 0x" << (int)msg->DATA[1] << " 0x" << (int)msg->DATA[2] << " 0x" << (int)msg->DATA[3] << " 0x" << (int)msg->DATA[4] << " 0x" << (int)msg->DATA[5] << " 0x" << (int)msg->DATA[6] << " 0x" << (int)msg->DATA[7]);
             ROS_WARN_STREAM("Waiting 500ms for recovery");
             ros::Duration(0.5).sleep();
+        }
+        else if(nwrites > 30)
+        {
+            ROS_WARN_STREAM("Write queue size " << nwrites <<". Waiting for message " << std::hex << (int)msg->ID << " Data 0x" << (int)msg->DATA[0] << " 0x" << (int)msg->DATA[1] << " 0x" << (int)msg->DATA[2] << " 0x" << (int)msg->DATA[3] << " 0x" << (int)msg->DATA[4] << " 0x" << (int)msg->DATA[5] << " 0x" << (int)msg->DATA[6] << " 0x" << (int)msg->DATA[7]);
+            ROS_WARN_STREAM("Waiting 50ms for recovery");
+            ros::Duration(0.05).sleep();
         }
 
         while(status & 0x80)

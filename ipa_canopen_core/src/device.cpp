@@ -327,6 +327,7 @@ void Device::sdo_incoming(BYTE data[8])
             error_message = (*iter).second;
         }
         ROS_ERROR_STREAM("SDO abort from CAN id " << std::hex << (int)CANid_ << " for SDO 0x" << sdo_id << "s" << (int)sdo_id_sub << " with the following error message: " << error_message);
+        return;
     }
     else // no idea what I received
     {
@@ -396,6 +397,5 @@ Device::Device(uint8_t CANid, std::string name, std::string type):
     initialized(false),
     device_type(type),
     inputs(0), outputs_(0),
-    polarity(1.0),
     nmt_init(false),
     name(name) {}

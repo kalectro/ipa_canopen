@@ -4,16 +4,12 @@
 #include <ros/ros.h>
 #include <boost/shared_ptr.hpp>
 #include <ipa_canopen_core/device.h>
+#include <sensor_msgs/JointState.h>
 
 using namespace canopen;
 
 class Motor : public Device
 {
-private:
-    int8_t operation_mode_target_;
-    std::string prefix_;
-    void controlPDO();
-
 public:
     std::string state;
     bool was_homed;
@@ -25,7 +21,6 @@ public:
     double analog1_inhibit_time;
     bool has_encoder;
     bool use_analog;
-    std::queue <ProfilePosition> position_commands;
     std::pair<bool, ros::Time> ack;
     int retry;
     int32_t nanoj_outputs;
@@ -80,8 +75,18 @@ public:
         {}
     };
 
-    JointState joint_state;
+    struct ProfilePosition
+    {
+        double position;
+        double velocity;
+        double acceleration;
+        double jerk;
+        uint16_t control_word;
+    };
+
+    sensor_msgs::JointState joint_state;
     Status status;
+    std::queue <ProfilePosition> position_commands;
 
     Motor(uint8_t CANid, std::string name):
         Device(CANid, name, "motor"),
@@ -96,8 +101,14 @@ public:
         operation_mode_target_(0),
         ack({true, ros::Time(0)}),
         retry(0),
-        nanoj_outputs(0)
-    {}
+        nanoj_outputs(0),
+        ticks_per_rad_or_meter_(4096),
+        polarity_(1.0)
+    {
+        joint_state.name.push_back(name);
+        joint_state.position.push_back(0.0);
+        joint_state.velocity.push_back(0.0);
+    }
 
     void init_pdo();
     void set_objects();
@@ -105,9 +116,9 @@ public:
     bool setMotorState(std::string targetState, double timeout = 10.0);
     void sendControlWord(uint16_t target_controlword);
     bool check_operation_mode(int8_t target_mode);
-    void RPDO2_profile_position(int32_t target_position, uint32_t max_velocity);
-    void RPDO4_position_rectified(int32_t profile_position);
-    void RPDO4_jerk(uint32_t profile_jerk);
+    void RPDO2_profile_position(double target_position, double velocity_limit);
+    void RPDO4_position_rectified(double profile_position);
+    void RPDO4_jerk(double profile_jerk);
     void RPDO4_torque(int16_t target_torque);
     void TPDO1_incoming(const TPCANRdMsg m);
     void TPDO2_incoming(const TPCANRdMsg m);
@@ -115,6 +126,16 @@ public:
     void TPDO4_incoming(const TPCANRdMsg m);
     void setOutputs(uint64_t target_outputs);
     void error_cb(const TPCANRdMsg m);
+
+private:
+    double from_ticks_to_si(int32_t ticks);
+    int from_si_to_ticks(double si);
+    int8_t operation_mode_target_;
+    std::string prefix_;
+    void controlPDO();
+    double ticks_per_rad_or_meter_;
+    int encoder_resolution_;
+    float polarity_;
 };
 
 typedef boost::shared_ptr<Motor> MotorPtr;
@@ -133,5 +154,52 @@ static const uint16_t CONTROL_WORD_DISABLE_VOLTAGE = 0x7D;
 static const uint16_t CONTROLWORD_FAULT_RESET_0 = 0x00;
 static const uint16_t CONTROLWORD_FAULT_RESET_1 = 0x80;
 static const uint16_t CONTROLWORD_HALT = 0x100;
+
+static const std::vector<std::string> nanotec_error_numbers =
+{
+    "No Error",
+    "Input Voltage too high",
+    "Output Current too high",
+    "Input Voltage too low",
+    "Can Bus Error",
+    "Motor turns even though it is blocked",
+    "NMT Master Nodeguarding Timeout",
+    "Encoder Defekt",
+    "Index Tick from Encoder not found during Auto Setup",
+    "Encoder Error in A/B Track",
+    "Positive Limit Switch activated and tolerance exceeded",
+    "Negative Limit Switch activated and tolerance exceeded",
+    "Temperature above 80 degrees",
+    "Severe Following Error",
+    "Flash is full",
+    "Motor blocked",
+    "Flash damaged",
+    "PDO send timeout",
+    "Hall sensor error"
+};
+
+static const std::map<uint16_t, const std::string> nanotec_error_codes =
+{
+    {0x1000, "Generic Error"},
+    {0x2300, "Output Current too high"},
+    {0x2310, "Output Current too high"},
+    {0x3100, "Over/Undervoltage"},
+    {0x3210, "Over/Undervoltage"},
+    {0x4200, "Temperature Error"},
+    {0x7212, "Motor blocked"},
+    {0x7305, "Incremental Encoder 1 broken"},
+    {0x7600, "Flash Storage full or corrupted"},
+    {0x8000, "CAN supervision error"},
+    {0x8100, "Message Lost"},
+    {0x8110, "CAN overrun, message lost"},
+    {0x8120, "CAN in Error passive mode"},
+    {0x8130, "Lifeguard or Heartbeat error"},
+    {0x8140, "Recover from bus off"},
+    {0x8200, "Slave PDO timeout"},
+    {0x8210, "PDO not processed (length error)"},
+    {0x8220, "PDO length exceeded"},
+    {0x8611, "Following Error too high"},
+    {0x8612, "Position Limit exceeded"}
+};
 
 #endif

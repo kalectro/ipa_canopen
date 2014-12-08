@@ -25,7 +25,6 @@ public:
         return name;
     }
 
-    float polarity;
     uint64_t inputs;
     std::string device_type;
     bool nmt_init;

@@ -6,9 +6,9 @@ void Encoder::TPDO1_incoming(const TPCANRdMsg m)
     int16_t ticks_per_sec = m.Msg.DATA[4] + (m.Msg.DATA[5] << 8);
     ticks <<= 8;  // inflate 24 Bit signed int to 32 Bit including
     ticks /= 64;  // revert inflating
-    joint_state.position = (double)ticks / joint_state.ticks_per_rad_or_meter * polarity;
-    joint_state.velocity = (double)ticks_per_sec / joint_state.ticks_per_rad_or_meter * polarity;
-    joint_state.stamp = ros::Time::now();
+    joint_state.position[0] = (double)ticks         / ticks_per_rad_or_meter_;
+    joint_state.velocity[0] = (double)ticks_per_sec / ticks_per_rad_or_meter_;
+    joint_state.header.stamp = ros::Time::now();
 }
 
 void Encoder::init_pdo()
@@ -42,7 +42,7 @@ void Encoder::init_pdo()
 void Encoder::set_objects()
 {
     // Load gear ratio
-    n_p->param("encoders/" + get_name() + "/ticks_per_rad_or_meter", joint_state.ticks_per_rad_or_meter, 4096);
+    n_p->param("encoders/" + get_name() + "/ticks_per_rad_or_meter", ticks_per_rad_or_meter_, 4096.0);
 
     // Activate velocity measurements
     sendSDO( ObjectKey(0x3010,0x01,0x08), 1);

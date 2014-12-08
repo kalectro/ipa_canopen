@@ -42,7 +42,7 @@ void Motor::init_pdo()
                 rsync_type = SYNC_TYPE_ASYNCHRONOUS;
                 break;
             case 2:
-                if(this->has_encoder)
+                if(has_encoder)
                 {
                     tpdo_registers_.push_back(ObjectKey(0x6064, 0, 0x20));  // Position Actual Value
                     tpdo_registers_.push_back(ObjectKey(0x6044, 0, 0x10));  // Velocity Actual Value
@@ -60,7 +60,7 @@ void Motor::init_pdo()
                 rsync_type = SYNC_TYPE_ASYNCHRONOUS;
                 break;
             case 3:
-                if(this->use_analog)
+                if(use_analog)
                 {
                     tpdo_registers_.push_back(ObjectKey(0x3220, 1, 0x10));  // Analog Input Channel 0
                     tpdo_registers_.push_back(ObjectKey(0x3220, 2, 0x10));  // Analog Input Channel 1
@@ -96,7 +96,7 @@ void Motor::set_objects()
     set_sdos(ObjectKey(0x6084,0x00,0x20), prefix_ + name + "/drive_params/deceleration");
 
     // Load gear ratio
-    n_p->param(prefix_ + name + "/drive_params/ticks_per_rad_or_meter", joint_state.ticks_per_rad_or_meter, 4096);
+    n_p->param(prefix_ + name + "/drive_params/ticks_per_rad_or_meter", ticks_per_rad_or_meter_, 4096.0);
 
     // Set Max Acceleration
     set_sdos(ObjectKey(0x60c5,0x00,0x20), prefix_ + name + "/drive_params/max_acceleration");
@@ -209,7 +209,7 @@ void Motor::set_objects()
     set_sdos(ObjectKey(0x607E,0x00,0x08), prefix_ + name + "/polarity");
     int pol;
     n_p->param(prefix_ + name + "/polarity", pol, 1);
-    polarity = ((pol>>7)&&1)?-1:1; // set polarity to -1 if 7th bit is set
+    polarity_ = ((pol>>7)&&1)?-1:1; // set polarity to -1 if 7th bit is set
 
     // internal limits
     // set_sdos(ObjectKey(0x607d,0x01), prefix_ + name + "/soft_limit_min");
@@ -241,6 +241,8 @@ void Motor::set_objects()
 
     // Define upper voltage after which over voltage error should be triggered
     set_sdos(ObjectKey(0x2034, 0x00,0x20), prefix_ + name + "/motor_params/overvoltage");
+
+    n_p->param<int>(prefix_ + name + "/motor_params/encoder_resolution", encoder_resolution_, 4096);
 }
 
 bool Motor::setOperationMode(int8_t targetMode, double timeout)
@@ -485,11 +487,11 @@ void Motor::TPDO1_incoming(const TPCANRdMsg m)
 void Motor::TPDO2_incoming(const TPCANRdMsg m)
 {
     int32_t ticks = m.Msg.DATA[0] + (m.Msg.DATA[1] << 8) + (m.Msg.DATA[2] << 16) + (m.Msg.DATA[3] << 24);
-    int16_t ticks_per_sec = m.Msg.DATA[4] + (m.Msg.DATA[5] << 8);
+    int16_t rev_per_min = m.Msg.DATA[4] + (m.Msg.DATA[5] << 8);
 
-    joint_state.position = (double)ticks         / joint_state.ticks_per_rad_or_meter * polarity;
-    joint_state.velocity = (double)ticks_per_sec / joint_state.ticks_per_rad_or_meter * polarity;
-    joint_state.stamp = ros::Time::now();
+    joint_state.position[0] = from_ticks_to_si(ticks) * polarity_;
+    joint_state.velocity[0] = from_ticks_to_si(rev_per_min * encoder_resolution_ / 60) * polarity_;
+    joint_state.header.stamp = ros::Time::now();
 }
 
 void Motor::TPDO3_incoming(const TPCANRdMsg m)
@@ -509,32 +511,37 @@ void Motor::TPDO3_incoming(const TPCANRdMsg m)
 void Motor::TPDO4_incoming(const TPCANRdMsg m)
 {
     int32_t ticks = m.Msg.DATA[0] + (m.Msg.DATA[1] << 8) + (m.Msg.DATA[2] << 16) + (m.Msg.DATA[3] << 24);
-    joint_state.position = (double)ticks / joint_state.ticks_per_rad_or_meter * polarity;
-    joint_state.stamp = ros::Time::now();
+    joint_state.position[0] = from_ticks_to_si(ticks) * polarity_;
+    joint_state.header.stamp = ros::Time::now();
 
     nanoj_outputs = m.Msg.DATA[4] + (m.Msg.DATA[5] << 8) + (m.Msg.DATA[6] << 16) + (m.Msg.DATA[7] << 24);
 }
 
-void Motor::RPDO2_profile_position(int32_t target_position, uint32_t max_velocity)
+void Motor::RPDO2_profile_position(double target_position, double velocity_limit)
 {
+    int32_t target_ticks   = from_si_to_ticks(target_position);
+    int32_t velocity_ticks = from_si_to_ticks(velocity_limit / (double)encoder_resolution_ * 60.0);
+
     TPCANMsg msg;
     std::memset(&msg, 0, sizeof(msg));
     msg.ID = COB_PDO2_RX + CANid_;
     msg.MSGTYPE = 0x00;
     msg.LEN = 8;
-    msg.DATA[0] = target_position & 0xFF;
-    msg.DATA[1] = (target_position >> 8) & 0xFF;
-    msg.DATA[2] = (target_position >> 16) & 0xFF;
-    msg.DATA[3] = (target_position >> 24) & 0xFF;
-    msg.DATA[4] = max_velocity & 0xFF;
-    msg.DATA[5] = (max_velocity >> 8) & 0xFF;
-    msg.DATA[6] = (max_velocity >> 16) & 0xFF;
-    msg.DATA[7] = (max_velocity >> 24) & 0xFF;
+    msg.DATA[0] = target_ticks & 0xFF;
+    msg.DATA[1] = (target_ticks >> 8) & 0xFF;
+    msg.DATA[2] = (target_ticks >> 16) & 0xFF;
+    msg.DATA[3] = (target_ticks >> 24) & 0xFF;
+    msg.DATA[4] = velocity_ticks & 0xFF;
+    msg.DATA[5] = (velocity_ticks >> 8) & 0xFF;
+    msg.DATA[6] = (velocity_ticks >> 16) & 0xFF;
+    msg.DATA[7] = (velocity_ticks >> 24) & 0xFF;
     CAN_Write_debug(h, &msg);
 }
 
-void Motor::RPDO4_jerk(uint32_t profile_jerk)
+void Motor::RPDO4_jerk(double profile_jerk)
 {
+    uint32_t jerk_ticks = from_si_to_ticks(profile_jerk);
+
     TPCANMsg msg;
     std::memset(&msg, 0, sizeof(msg));
     msg.ID = COB_PDO4_RX + CANid_;
@@ -542,17 +549,19 @@ void Motor::RPDO4_jerk(uint32_t profile_jerk)
     msg.LEN = 8;
     msg.DATA[0] = 0;
     msg.DATA[1] = 0;
-    msg.DATA[2] = profile_jerk & 0xFF;
-    msg.DATA[3] = (profile_jerk >> 8) & 0xFF;
-    msg.DATA[4] = (profile_jerk >> 16) & 0xFF;
-    msg.DATA[5] = (profile_jerk >> 24) & 0xFF;
+    msg.DATA[2] = jerk_ticks & 0xFF;
+    msg.DATA[3] = (jerk_ticks >> 8) & 0xFF;
+    msg.DATA[4] = (jerk_ticks >> 16) & 0xFF;
+    msg.DATA[5] = (jerk_ticks >> 24) & 0xFF;
     msg.DATA[6] = 0x00;
     msg.DATA[7] = 0x00;
     CAN_Write_debug(h, &msg);
 }
 
-void Motor::RPDO4_position_rectified(int32_t profile_position)
+void Motor::RPDO4_position_rectified(double profile_position)
 {
+    int32_t position_ticks = from_si_to_ticks(profile_position);
+
     TPCANMsg msg;
     std::memset(&msg, 0, sizeof(msg));
     msg.ID = COB_PDO4_RX + CANid_;
@@ -560,10 +569,10 @@ void Motor::RPDO4_position_rectified(int32_t profile_position)
     msg.LEN = 8;
     msg.DATA[0] = 0;
     msg.DATA[1] = 0;
-    msg.DATA[2] = profile_position & 0xFF;
-    msg.DATA[3] = (profile_position >> 8) & 0xFF;
-    msg.DATA[4] = (profile_position >> 16) & 0xFF;
-    msg.DATA[5] = (profile_position >> 24) & 0xFF;
+    msg.DATA[2] = position_ticks & 0xFF;
+    msg.DATA[3] = (position_ticks >> 8) & 0xFF;
+    msg.DATA[4] = (position_ticks >> 16) & 0xFF;
+    msg.DATA[5] = (position_ticks >> 24) & 0xFF;
     msg.DATA[6] = 0x00;
     msg.DATA[7] = 0x00;
     CAN_Write_debug(h, &msg);
@@ -571,7 +580,33 @@ void Motor::RPDO4_position_rectified(int32_t profile_position)
 
 void Motor::error_cb(const TPCANRdMsg m)
 {
-    ROS_ERROR_STREAM("Todo: write comprehensive error message");
+    uint16_t error_code =  m.Msg.DATA[0] +  (m.Msg.DATA[1] << 8);
+    uint8_t error_number = m.Msg.DATA[3];
+    std::stringstream error_stream;
+    error_stream << name << ": ";
+    if(error_number != 0 && error_number < nanotec_error_numbers.size())
+    {
+        error_stream << nanotec_error_numbers[error_number] << ". ";
+    }
+    if(nanotec_error_codes.find(error_code) != nanotec_error_codes.end())
+    {
+        error_stream << nanotec_error_codes.at(error_code);
+    }
+    else
+    {
+        error_stream << "error code: " << error_code;
+    }
+    ROS_ERROR_STREAM(error_stream.str());
+}
+
+double Motor::from_ticks_to_si(int32_t ticks)
+{
+    return (double)ticks / ticks_per_rad_or_meter_;
+}
+
+int Motor::from_si_to_ticks(double si)
+{
+    return si * ticks_per_rad_or_meter_;
 }
 
 MotorPtr as_motor(DevicePtr ptr)

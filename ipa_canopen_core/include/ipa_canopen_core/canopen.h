@@ -75,8 +75,6 @@
 #include <utility>
 #include <fcntl.h>    // for O_RDWR
 #include <stdint.h>
-#include "schunkErrors.h"
-#include "nanotecErrors.h"
 #include <queue>
 #include <ros/ros.h>
 #include <boost/shared_ptr.hpp>
@@ -101,14 +99,6 @@ namespace canopen{
         {"20K" , CAN_BAUD_20K},
         {"10K" , CAN_BAUD_10K},
         {"5K" , CAN_BAUD_5K} };
-
-    struct ProfilePosition
-    {
-        int32_t target;
-        uint32_t max_velocity;
-        u_int16_t control_word;
-        uint32_t jerk;
-    };
 
     class ObjectKey{
     public:
@@ -141,22 +131,6 @@ namespace canopen{
         SDOanswer():
             can_id(0),
             confirmed(false){}
-    };
-
-    class JointState
-    {
-    public:
-        double position;
-        double velocity;
-        ros::Time stamp;
-        int32_t ticks_per_rad_or_meter;
-
-        JointState():
-            position(0.0),
-            velocity(0.0),
-            stamp(ros::Time::now()),
-            ticks_per_rad_or_meter(4096)
-        {}
     };
 
     DWORD CAN_Write_debug(HANDLE h, TPCANMsg *msg);
@@ -218,27 +192,6 @@ namespace canopen{
     static const uint16_t COB_SDO_RX = 0x600;
     static const uint16_t COB_NODEGUARD = 0x700;
     static const uint16_t COB_MAX = 0x800;
-
-    static const std::map<uint16_t, const std::string> error_codes =
-    {
-        {0x1000, "Generic Error"},
-        {0x2310, "Output Current too high"},
-        {0x3210, "Over/Undervoltage"},
-        {0x4200, "Temperature Error"},
-        {0x5010, "Sensorfehler oder X-Winkelwert außerhalb des Messbereiches"},
-        {0x5020, "Sensorfehler oder Y-Winkelwert außerhalb des Messbereiches"},
-        {0x7305, "Incremental Encoder 1 broken"},
-        {0x8000, "CAN supervision error"},
-        {0x8100, "Message Lost"},
-        {0x8110, "CAN overrun, message lost"},
-        {0x8120, "CAN in Error passive mode"},
-        {0x8130, "Lifeguard or Heartbeat error"},
-        {0x8140, "Recover from bus off"},
-        {0x8210, "PDO not processed (length error)"},
-        {0x8220, "PDO length exceeded"},
-        {0x8611, "Following Error too high"},
-        {0x8612, "Position Limit exceeded"}
-    };
 
     static const std::map<int8_t, const std::string> modesDisplay =
     {
