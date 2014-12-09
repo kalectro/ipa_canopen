@@ -112,6 +112,7 @@ namespace canopen
         counter = 0;
 
         status = LINUX_CAN_Extended_Status(h, &nreads, &nwrites);
+        ROS_DEBUG_STREAM("Waiting for " << nreads << " reads and " << nwrites << " writes");
         if(nwrites > 31)
         {
             ROS_WARN_STREAM("Write queue size " << nwrites <<". Waiting for message " << std::hex << (int)msg->ID << " Data 0x" << (int)msg->DATA[0] << " 0x" << (int)msg->DATA[1] << " 0x" << (int)msg->DATA[2] << " 0x" << (int)msg->DATA[3] << " 0x" << (int)msg->DATA[4] << " 0x" << (int)msg->DATA[5] << " 0x" << (int)msg->DATA[6] << " 0x" << (int)msg->DATA[7]);
