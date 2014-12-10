@@ -1,34 +1,37 @@
 #include <ipa_canopen_core/device_group.h>
 
+void DeviceGroup::add_device(uint8_t CANid, std::string motor_name, DevicePtr new_device)
+{
+    devices_[motor_name] = new_device;
+    device_id_map[CANid] = new_device;
+    device_name_map[motor_name] = new_device;
+}
+
 MotorPtr DeviceGroup::add_motor(uint8_t CANid, std::string motor_name)
 {
     MotorPtr new_device( new Motor(CANid, motor_name) );
-    devices_[motor_name] = new_device;
-    device_id_map[CANid] = new_device;
+    add_device(CANid, motor_name, new_device);
     return new_device;
 }
 
 IoModulePtr DeviceGroup::add_io_module(uint8_t CANid, std::string io_name)
 {
     IoModulePtr new_device( new IoModule(CANid, io_name) );
-    devices_[io_name] = new_device;
-    device_id_map[CANid] = new_device;
+    add_device(CANid, io_name, new_device);
     return new_device;
 }
 
 ImuPtr DeviceGroup::add_imu(uint8_t CANid, std::string imu_name)
 {
     ImuPtr new_device( new Imu(CANid, imu_name) );
-    devices_[imu_name] = new_device;
-    device_id_map[CANid] = new_device;
+    add_device(CANid, imu_name, new_device);
     return new_device;
 }
 
 EncoderPtr DeviceGroup::add_encoder(uint8_t CANid, std::string encoder_name)
 {
     EncoderPtr new_device( new Encoder(CANid, encoder_name) );
-    devices_[encoder_name] = new_device;
-    device_id_map[CANid] = new_device;
+    add_device(CANid, encoder_name, new_device);
     return new_device;
 }
 

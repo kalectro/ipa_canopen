@@ -16,6 +16,7 @@ class DeviceGroup
 private:
     std::string name_;
     std::map<std::string, DevicePtr> devices_;
+    void add_device(uint8_t CANid, std::string motor_name, DevicePtr new_device);
 public:
     bool get_device(std::string name, DevicePtr& return_device);
     std::vector<DevicePtr> get_devices();
@@ -30,5 +31,6 @@ public:
 };
 
 extern std::map<uint8_t, DevicePtr> device_id_map;
+extern std::map<std::string, DevicePtr> device_name_map;
 
 #endif
