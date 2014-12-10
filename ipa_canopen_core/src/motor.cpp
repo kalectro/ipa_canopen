@@ -22,8 +22,11 @@ void Motor::init_pdo()
         ROS_INFO_STREAM("Publishing analog values for motor " << name << " with filter depth " << analog0.size());
     }
 
+    int max_pdos;
+    n_p->param(prefix_ + name + "/motor_params/pdo_channels", max_pdos, 4);
+
     uint8_t tsync_type, rsync_type;
-    for(int pdo_channel = 1; pdo_channel <=4 ; pdo_channel++)
+    for(int pdo_channel = 1; pdo_channel <=max_pdos ; pdo_channel++)
     {
         tpdo_registers_.clear();
         rpdo_registers_.clear();
