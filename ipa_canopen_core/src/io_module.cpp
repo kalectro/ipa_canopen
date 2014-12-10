@@ -15,7 +15,7 @@ void IoModule::init_pdo()
     incomingPDOHandlers[ COB_PDO1_TX + CANid_ ] = [this](const TPCANRdMsg m) { TPDO1_incoming( m ); };
 
     uint8_t tsync_type, rsync_type;
-    for(int pdo_channel = 1; pdo_channel <=2 ; pdo_channel++)
+    for(int pdo_channel = 1; pdo_channel <=1 ; pdo_channel++)
     {
         tpdo_registers_.clear();
         rpdo_registers_.clear();
@@ -29,10 +29,8 @@ void IoModule::init_pdo()
                 tsync_type = SYNC_TYPE_ASYNCHRONOUS;
                 rsync_type = SYNC_TYPE_ASYNCHRONOUS;
                 break;
-            case 2:
-                break;
             default:
-                ROS_ERROR("There are only 2 PDO channels");
+                ROS_ERROR("There are only 1 PDO channels");
                 return;
                 break;
         }
