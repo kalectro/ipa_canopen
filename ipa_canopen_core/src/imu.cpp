@@ -17,26 +17,22 @@ void Imu::init_pdo()
     incomingPDOHandlers[ COB_PDO1_TX + CANid_ ] = [this](const TPCANRdMsg m) { TPDO1_incoming( m ); };
 
     uint8_t tsync_type, rsync_type;
-    for(int pdo_channel = 1; pdo_channel <=4 ; pdo_channel++)
+    for(int pdo_channel = 1; pdo_channel <=2 ; pdo_channel++)
     {
         tpdo_registers_.clear();
         rpdo_registers_.clear();
         switch(pdo_channel)
         {
             case 1:
-                tpdo_registers_.push_back(ObjectKey(0x6010, 0, 2));  // longitudinal [0.01°]
-                tpdo_registers_.push_back(ObjectKey(0x6020, 0, 2));  // lateral [0.01°]
+                tpdo_registers_.push_back(ObjectKey(0x6010, 0, 16));  // longitudinal [0.01°]
+                tpdo_registers_.push_back(ObjectKey(0x6020, 0, 16));  // lateral [0.01°]
 
                 tsync_type = SYNC_TYPE_MANUFACTURER_SPECIFIC;
                 break;
             case 2:
                 break;
-            case 3:
-                break;
-            case 4:
-                break;
             default:
-                ROS_ERROR("There are only 4 PDO channels");
+                ROS_ERROR("There are only 2 PDO channels");
                 return;
                 break;
         }
