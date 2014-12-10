@@ -22,9 +22,9 @@ void IoModule::init_pdo()
         switch(pdo_channel)
         {
             case 1:
-                tpdo_registers_.push_back(ObjectKey(0x6000, 1, 1));  // DI0..7
-                tpdo_registers_.push_back(ObjectKey(0x6000, 2, 1));  // DI8..15
-                tpdo_registers_.push_back(ObjectKey(0x6000, 3, 1));  // DI16..23
+                tpdo_registers_.push_back(ObjectKey(0x6000, 1, 8));  // DI0..7
+                tpdo_registers_.push_back(ObjectKey(0x6000, 2, 8));  // DI8..15
+                tpdo_registers_.push_back(ObjectKey(0x6000, 3, 8));  // DI16..23
 
                 tsync_type = SYNC_TYPE_ASYNCHRONOUS;
                 rsync_type = SYNC_TYPE_ASYNCHRONOUS;
