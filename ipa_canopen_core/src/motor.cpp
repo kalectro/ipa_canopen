@@ -139,7 +139,9 @@ void Motor::set_objects()
     // Set Encoder Configuration (Voltage select or switch between single-ended or diff encoder
     set_sdos(ObjectKey(0x2059, 0x00,0x20), prefix_ + name + "/motor_params/encoder_configuration");
 
-    n_p->param<double>(prefix_ + name + "/drive_params/jerk", max_jerk, 1000.0);
+    n_p->param<double>(prefix_ + name + "/drive_params/jerk", max_jerk, 1000.0);  // read U/min^3
+    max_jerk = from_ticks_to_si(max_jerk * 4096.0 / 60.0 / 60.0 / 60.0);
+    ROS_DEBUG_STREAM("Set max jerk to " << max_jerk);
 
     // check if user program is used
     n_p->param<std::string>(prefix_ + name + "/user_code", user_code, "none");
@@ -541,7 +543,8 @@ void Motor::RPDO2_profile_position(double target_position, double velocity_limit
 
 void Motor::RPDO4_jerk(double profile_jerk)
 {
-    uint32_t jerk_ticks = from_si_to_ticks(profile_jerk);
+    uint32_t jerk_motor = from_si_jerk_to_motor_jerk(profile_jerk);
+    ROS_DEBUG_STREAM("setting PDO jerk to " << jerk_motor);
 
     TPCANMsg msg;
     std::memset(&msg, 0, sizeof(msg));
@@ -550,10 +553,10 @@ void Motor::RPDO4_jerk(double profile_jerk)
     msg.LEN = 8;
     msg.DATA[0] = 0;
     msg.DATA[1] = 0;
-    msg.DATA[2] = jerk_ticks & 0xFF;
-    msg.DATA[3] = (jerk_ticks >> 8) & 0xFF;
-    msg.DATA[4] = (jerk_ticks >> 16) & 0xFF;
-    msg.DATA[5] = (jerk_ticks >> 24) & 0xFF;
+    msg.DATA[2] = jerk_motor & 0xFF;
+    msg.DATA[3] = (jerk_motor >> 8) & 0xFF;
+    msg.DATA[4] = (jerk_motor >> 16) & 0xFF;
+    msg.DATA[5] = (jerk_motor >> 24) & 0xFF;
     msg.DATA[6] = 0x00;
     msg.DATA[7] = 0x00;
     CAN_Write_debug(h, &msg);
@@ -609,6 +612,12 @@ int Motor::from_si_to_ticks(double si)
 {
     return si * ticks_per_rad_or_meter_;
 }
+
+int Motor::from_si_jerk_to_motor_jerk(double si)
+{
+    return (si * ticks_per_rad_or_meter_ / 4096.0) * 60.0 * 60.0 * 60.0;
+}
+
 
 MotorPtr as_motor(DevicePtr ptr)
 {

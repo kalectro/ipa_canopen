@@ -97,7 +97,7 @@ public:
         use_analog(false),
         was_homed(false),
         user_code("none"),
-        max_jerk(1000.0),
+        max_jerk(1.0),
         operation_mode_target_(0),
         ack({true, ros::Time(0)}),
         retry(0),
@@ -128,6 +128,7 @@ public:
     void error_cb(const TPCANRdMsg m);
     double from_ticks_to_si(int32_t ticks);
     int from_si_to_ticks(double si);
+    int from_si_jerk_to_motor_jerk(double si);
 
 private:
     int8_t operation_mode_target_;
