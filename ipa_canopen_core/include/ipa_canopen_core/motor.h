@@ -126,10 +126,10 @@ public:
     void TPDO4_incoming(const TPCANRdMsg m);
     void setOutputs(uint64_t target_outputs);
     void error_cb(const TPCANRdMsg m);
-
-private:
     double from_ticks_to_si(int32_t ticks);
     int from_si_to_ticks(double si);
+
+private:
     int8_t operation_mode_target_;
     std::string prefix_;
     void controlPDO();
