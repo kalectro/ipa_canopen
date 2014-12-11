@@ -250,8 +250,7 @@ void Motor::set_objects()
 
 bool Motor::setOperationMode(int8_t targetMode, double timeout)
 {
-    static ros::Time start;
-    start = ros::Time::now();
+    ros::Time start = ros::Time::now();
 
     // check if motor is in a legitimate state to change operation mode
     if (    state != MS_READY_TO_SWITCH_ON &&
@@ -281,8 +280,7 @@ bool Motor::setOperationMode(int8_t targetMode, double timeout)
 
 bool Motor::setMotorState(std::string targetState, double timeout)
 {
-    static ros::Time start;
-    start = ros::Time::now();
+    ros::Time start = ros::Time::now();
     ROS_DEBUG_STREAM("Setting state of motor " << (int)CANid_ << " to " << targetState);
     while (state != targetState)
     {

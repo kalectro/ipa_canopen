@@ -41,8 +41,11 @@ bool Device::sendSDO(ObjectKey sdo, int value, bool verify, int32_t trials, doub
     response_sdo.object.subindex = 0;
     response_sdo.value = 0;
 
-    static ros::Time start = ros::Time::now();
-    while(response_sdo.can_id != CANid_ || response_sdo.object.index != sdo.index || response_sdo.object.subindex != sdo.subindex || response_sdo.value != value)  // possible problem here! Previous: (IntType)response_sdo.value != value
+    ros::Time start = ros::Time::now();
+    while(response_sdo.can_id != CANid_ ||
+          response_sdo.object.index != sdo.index ||
+          response_sdo.object.subindex != sdo.subindex ||
+          memcmp(&response_sdo.value, &value, sdo.size / 8) != 0)  // compare only sdo.size bits
     {
         // Send new value
         CAN_Write_debug(h, &msg);
