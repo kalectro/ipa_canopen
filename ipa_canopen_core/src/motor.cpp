@@ -153,16 +153,16 @@ void Motor::set_objects()
     else
     {
         // Set S-Curve position profile and limit jerk
-        sendSDO(ObjectKey(0x60A4,1,0x20), max_jerk);
-        sendSDO(ObjectKey(0x60A4,2,0x20), max_jerk);
+        sendSDO(ObjectKey(0x60A4,1,0x20), from_si_jerk_to_motor_jerk(max_jerk));
+        sendSDO(ObjectKey(0x60A4,2,0x20), from_si_jerk_to_motor_jerk(max_jerk));
 
         // work-around for inconsistent jerk SDOs
         int max_pdos;
         n_p->param(prefix_ + name + "/motor_params/pdo_channels", max_pdos, 4);
         if(max_pdos == 4)
         {
-            sendSDO(ObjectKey(0x60A4,3,0x20), max_jerk);
-            sendSDO(ObjectKey(0x60A4,4,0x20), max_jerk);
+            sendSDO(ObjectKey(0x60A4,3,0x20), from_si_jerk_to_motor_jerk(max_jerk));
+            sendSDO(ObjectKey(0x60A4,4,0x20), from_si_jerk_to_motor_jerk(max_jerk));
         }
     }
     if(user_code == "flyref")
